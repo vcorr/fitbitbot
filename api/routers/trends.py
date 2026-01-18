@@ -408,12 +408,14 @@ async def get_trends_analysis(
         steps_values = list(steps_by_date.values())
         median_steps = sorted(steps_values)[len(steps_values) // 2] if steps_values else 5000
 
-        sorted_dates = sorted(steps_by_date.keys())
-        for i, date in enumerate(sorted_dates[:-1]):
-            next_date = sorted_dates[i + 1] if i + 1 < len(sorted_dates) else None
-            if next_date and next_date in hrv_by_date:
-                steps = steps_by_date[date]
-                next_hrv = hrv_by_date[next_date]
+        for date_str, steps in steps_by_date.items():
+            # Compute actual next calendar day (not just next available record)
+            current_date = datetime.strptime(date_str, "%Y-%m-%d")
+            next_calendar_day = (current_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
+            # Only compare when the actual next day exists in HRV data
+            if next_calendar_day in hrv_by_date:
+                next_hrv = hrv_by_date[next_calendar_day]
 
                 if steps > median_steps:
                     high_activity_next_hrv.append(next_hrv)
