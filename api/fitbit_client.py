@@ -3,6 +3,7 @@ Fitbit API Client
 Centralized client for all Fitbit API calls with automatic token refresh.
 """
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,10 +12,16 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Token file path (same as auth module)
 TOKEN_FILE = Path(__file__).parent.parent / "output" / ".token.json"
 TOKEN_URL = "https://api.fitbit.com/oauth2/token"
 BASE_URL = "https://api.fitbit.com"
+
+# Request timeout in seconds
+REQUEST_TIMEOUT = 30
 
 
 class FitbitAPIError(Exception):
@@ -39,6 +46,7 @@ class FitbitClient:
     def __init__(self):
         load_dotenv()
         self._access_token: str | None = None
+        self._refresh_token: str | None = None
         self._client_id = os.getenv("CLIENT_ID")
         self._client_secret = os.getenv("CLIENT_SECRET")
         self._load_token()
@@ -51,8 +59,13 @@ class FitbitClient:
                     token_data = json.load(f)
                     self._access_token = token_data.get("access_token")
                     self._refresh_token = token_data.get("refresh_token")
-            except (json.JSONDecodeError, IOError):
-                pass
+                    logger.debug("Loaded tokens from %s", TOKEN_FILE)
+            except json.JSONDecodeError as e:
+                logger.warning("Failed to parse token file %s: %s", TOKEN_FILE, e)
+            except IOError as e:
+                logger.warning("Failed to read token file %s: %s", TOKEN_FILE, e)
+        else:
+            logger.info("Token file not found at %s. Run authentication first.", TOKEN_FILE)
 
     def _save_token(self, token_data: dict) -> None:
         """Save token to cache file."""
@@ -65,22 +78,34 @@ class FitbitClient:
     def _refresh_access_token(self) -> bool:
         """Refresh the access token using the refresh token."""
         if not self._refresh_token or not self._client_id or not self._client_secret:
+            logger.warning("Cannot refresh token: missing refresh_token, client_id, or client_secret")
             return False
 
-        response = requests.post(
-            TOKEN_URL,
-            data={
-                "grant_type": "refresh_token",
-                "refresh_token": self._refresh_token,
-            },
-            auth=(self._client_id, self._client_secret),
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
+        try:
+            response = requests.post(
+                TOKEN_URL,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": self._refresh_token,
+                },
+                auth=(self._client_id, self._client_secret),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=REQUEST_TIMEOUT,
+            )
 
-        if response.status_code == 200:
-            self._save_token(response.json())
-            return True
-        return False
+            if response.status_code == 200:
+                self._save_token(response.json())
+                logger.info("Successfully refreshed access token")
+                return True
+            else:
+                logger.error("Token refresh failed with status %d: %s", response.status_code, response.text)
+                return False
+        except requests.Timeout:
+            logger.error("Token refresh request timed out after %d seconds", REQUEST_TIMEOUT)
+            return False
+        except requests.RequestException as e:
+            logger.error("Token refresh request failed: %s", e)
+            return False
 
     def _request(self, endpoint: str, params: dict | None = None) -> dict[str, Any]:
         """
@@ -93,20 +118,37 @@ class FitbitClient:
         url = f"{BASE_URL}{endpoint}"
         headers = {"Authorization": f"Bearer {self._access_token}"}
 
-        response = requests.get(url, headers=headers, params=params)
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=REQUEST_TIMEOUT)
+        except requests.Timeout:
+            logger.error("Request to %s timed out after %d seconds", endpoint, REQUEST_TIMEOUT)
+            raise FitbitAPIError(504, f"Request timed out after {REQUEST_TIMEOUT} seconds")
+        except requests.RequestException as e:
+            logger.error("Request to %s failed: %s", endpoint, e)
+            raise FitbitAPIError(503, f"Request failed: {e}")
 
         # Handle token expiration
         if response.status_code == 401:
+            logger.info("Access token expired, attempting refresh")
             if self._refresh_access_token():
                 headers = {"Authorization": f"Bearer {self._access_token}"}
-                response = requests.get(url, headers=headers, params=params)
+                try:
+                    response = requests.get(url, headers=headers, params=params, timeout=REQUEST_TIMEOUT)
+                except requests.Timeout:
+                    logger.error("Retry request to %s timed out after %d seconds", endpoint, REQUEST_TIMEOUT)
+                    raise FitbitAPIError(504, f"Request timed out after {REQUEST_TIMEOUT} seconds")
+                except requests.RequestException as e:
+                    logger.error("Retry request to %s failed: %s", endpoint, e)
+                    raise FitbitAPIError(503, f"Request failed: {e}")
             else:
                 raise FitbitAPIError(401, "Token expired and refresh failed. Re-authenticate.")
 
         if response.status_code == 429:
+            logger.warning("Rate limit exceeded for %s", endpoint)
             raise FitbitRateLimitError("Fitbit API rate limit exceeded (150 requests/hour). Try again later.")
 
         if response.status_code != 200:
+            logger.error("API error for %s: HTTP %d - %s", endpoint, response.status_code, response.text[:200])
             raise FitbitAPIError(response.status_code, response.text)
 
         return response.json()

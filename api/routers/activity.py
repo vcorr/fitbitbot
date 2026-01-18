@@ -1,11 +1,12 @@
 """
 Activity endpoints.
 """
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from ..fitbit_client import FitbitClient, get_fitbit_client
+from ..fitbit_client import FitbitClient, FitbitAPIError, FitbitRateLimitError, get_fitbit_client
 from ..models import (
     ActivityGoals,
     ActivityHistoryResponse,
@@ -14,6 +15,8 @@ from ..models import (
     HeartRateZone,
     Insight,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/activity", tags=["Activity"])
 
@@ -151,8 +154,10 @@ async def get_today_activity(
             hist_data = client.get_activity_by_date(date_str)
             history_summaries.append(parse_activity_summary(hist_data, date_str))
         insights = compute_activity_insights(summary, history_summaries)
-    except Exception:
-        pass  # Insights are optional
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error fetching activity history for insights: %s", e)
 
     return ActivityTodayResponse(
         summary=summary,

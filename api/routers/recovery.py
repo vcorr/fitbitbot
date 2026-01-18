@@ -1,11 +1,12 @@
 """
 Recovery endpoints (HRV, SpO2, Breathing Rate, Temperature).
 """
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from ..fitbit_client import FitbitClient, FitbitAPIError, get_fitbit_client
+from ..fitbit_client import FitbitClient, FitbitAPIError, FitbitRateLimitError, get_fitbit_client
 from ..models import (
     BreathingRateData,
     CardioFitnessData,
@@ -16,6 +17,8 @@ from ..models import (
     SpO2Data,
     TemperatureData,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/recovery", tags=["Recovery"])
 
@@ -105,37 +108,47 @@ async def get_today_recovery(
         hrv_raw = client.get_hrv_by_date(today)
         raw_data["hrv"] = hrv_raw
         hrv = parse_hrv_data(hrv_raw, today)
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         spo2_raw = client.get_spo2_by_date(today)
         raw_data["spo2"] = spo2_raw
         spo2 = parse_spo2_data(spo2_raw, today)
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         br_raw = client.get_breathing_rate_by_date(today)
         raw_data["breathing_rate"] = br_raw
         breathing_rate = parse_breathing_rate_data(br_raw, today)
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         temp_raw = client.get_temperature_by_date(today)
         raw_data["temperature"] = temp_raw
         temperature = parse_temperature_data(temp_raw, today)
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     cardio_fitness = None
     try:
         cardio_raw = client.get_cardio_fitness_by_date(today)
         raw_data["cardio_fitness"] = cardio_raw
         cardio_fitness = parse_cardio_fitness_data(cardio_raw, today)
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Compute insights
     insights = []
@@ -215,8 +228,10 @@ async def get_recovery_history(
                 daily_rmssd=value.get("dailyRmssd"),
                 deep_rmssd=value.get("deepRmssd"),
             ))
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Fetch SpO2 history
     try:
@@ -232,8 +247,10 @@ async def get_recovery_history(
                     min=value.get("min"),
                     max=value.get("max"),
                 ))
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Fetch breathing rate history
     try:
@@ -245,8 +262,10 @@ async def get_recovery_history(
                 date=entry.get("dateTime", ""),
                 breathing_rate=value.get("breathingRate"),
             ))
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Fetch temperature history
     try:
@@ -258,8 +277,10 @@ async def get_recovery_history(
                 date=entry.get("dateTime", ""),
                 nightly_relative=value.get("nightlyRelative"),
             ))
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Sort all records by date descending
     hrv_records.sort(key=lambda r: r.date, reverse=True)

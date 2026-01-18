@@ -1,6 +1,7 @@
 """
 Summary endpoints - aggregated data for AI coach context.
 """
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,6 +33,8 @@ from ..models import (
     TodaySummaryResponse,
     WeekSummaryResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/summary", tags=["Summary"])
 
@@ -158,8 +161,8 @@ async def get_today_summary(
                 sleep_record = parse_sleep_record(sleep_raw["sleep"][0])
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Activity
     activity_summary = None
@@ -168,8 +171,8 @@ async def get_today_summary(
         activity_summary = parse_activity_summary(activity_raw, today_str)
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Heart Rate
     heart_rate_response = None
@@ -200,8 +203,8 @@ async def get_today_summary(
         )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Recovery
     recovery_response = None
@@ -224,8 +227,8 @@ async def get_today_summary(
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         spo2_raw = client.get_spo2_by_date(today_str)
@@ -240,8 +243,8 @@ async def get_today_summary(
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         br_raw = client.get_breathing_rate_by_date(today_str)
@@ -255,8 +258,8 @@ async def get_today_summary(
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         temp_raw = client.get_temperature_by_date(today_str)
@@ -270,8 +273,8 @@ async def get_today_summary(
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     if hrv or spo2 or breathing_rate or temperature:
         recovery_response = RecoveryTodayResponse(
@@ -365,8 +368,8 @@ async def get_week_summary(
                 ))
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Activity history
     activity_response = None
@@ -417,8 +420,8 @@ async def get_week_summary(
                 ))
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Resting heart rate history
     resting_hr_response = None
@@ -446,8 +449,8 @@ async def get_week_summary(
         )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Recovery history
     recovery_response = None
@@ -480,8 +483,8 @@ async def get_week_summary(
         )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     return WeekSummaryResponse(
         start_date=start_date,
@@ -545,8 +548,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
         raise
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         cached_hrv_history = client.get_hrv_range(week_ago, yesterday)
@@ -554,8 +557,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
         raise
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
     # Last night's sleep
@@ -615,8 +618,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
         raise
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
     # Yesterday's activity (full day)
@@ -648,8 +651,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
                 ))
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
     # Today's recovery metrics
@@ -676,8 +679,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         spo2_raw = client.get_spo2_by_date(today)
@@ -692,8 +695,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         br_raw = client.get_breathing_rate_by_date(today)
@@ -707,8 +710,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         temp_raw = client.get_temperature_by_date(today)
@@ -722,8 +725,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     try:
         cardio_raw = client.get_cardio_fitness_by_date(today)
@@ -739,8 +742,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             )
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     recovery = RecoveryTodayResponse(
         date=today,
@@ -834,8 +837,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             ))
     except FitbitRateLimitError:
         raise
-    except FitbitAPIError:
-        pass
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
     # 7-day trends (using cached data where possible)
@@ -868,8 +871,10 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
                     steps_values.append(int(entry["value"]))
                 except (ValueError, TypeError):
                     pass
-        except FitbitAPIError:
-            pass
+        except FitbitRateLimitError:
+            raise
+        except FitbitAPIError as e:
+            logger.debug("Fitbit API error fetching steps trends: %s", e)
 
         # HRV trends (use cached data)
         if cached_hrv_history:
@@ -883,8 +888,10 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             for entry in hr_history.get("activities-heart", []):
                 if "value" in entry and "restingHeartRate" in entry["value"]:
                     rhr_values.append(entry["value"]["restingHeartRate"])
-        except FitbitAPIError:
-            pass
+        except FitbitRateLimitError:
+            raise
+        except FitbitAPIError as e:
+            logger.debug("Fitbit API error fetching HR trends: %s", e)
 
         # Build trends object
         days_of_data = max(len(sleep_durations), len(steps_values), len(hrv_values), 1)

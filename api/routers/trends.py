@@ -2,13 +2,16 @@
 Trends and analysis endpoints.
 Pre-computed insights for AI coaching with graceful handling of limited data.
 """
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
-from ..fitbit_client import FitbitClient, FitbitAPIError, get_fitbit_client
+from ..fitbit_client import FitbitClient, FitbitAPIError, FitbitRateLimitError, get_fitbit_client
 from ..models import Insight
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/trends", tags=["Trends"])
 
@@ -133,8 +136,10 @@ async def get_trends_analysis(
                     "date": entry.get("dateTime", ""),
                     "value": value["dailyRmssd"],
                 })
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Sleep
     try:
@@ -149,8 +154,10 @@ async def get_trends_analysis(
                         "duration_hours": duration_hours,
                         "efficiency": entry.get("efficiency"),
                     })
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Activity (steps)
     try:
@@ -164,8 +171,10 @@ async def get_trends_analysis(
                 })
             except (ValueError, TypeError):
                 pass
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # Resting heart rate
     try:
@@ -177,8 +186,10 @@ async def get_trends_analysis(
                     "date": entry.get("dateTime", ""),
                     "value": value["restingHeartRate"],
                 })
-    except FitbitAPIError:
-        pass
+    except FitbitRateLimitError:
+        raise
+    except FitbitAPIError as e:
+        logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
     # Report data availability

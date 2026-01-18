@@ -1,11 +1,12 @@
 """
 Sleep endpoints.
 """
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from ..fitbit_client import FitbitClient, get_fitbit_client
+from ..fitbit_client import FitbitClient, FitbitAPIError, FitbitRateLimitError, get_fitbit_client
 from ..models import (
     Insight,
     SleepHistoryResponse,
@@ -13,6 +14,8 @@ from ..models import (
     SleepRecord,
     SleepStages,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sleep", tags=["Sleep"])
 
@@ -126,8 +129,10 @@ async def get_last_night_sleep(
                 if s.get("isMainSleep", False)
             ]
             insights = compute_sleep_insights(sleep_record, history_records)
-        except Exception:
-            pass  # Insights are optional, don't fail if history fetch fails
+        except FitbitRateLimitError:
+            raise
+        except FitbitAPIError as e:
+            logger.debug("Fitbit API error fetching sleep history for insights: %s", e)
 
     return SleepLastNightResponse(
         sleep=sleep_record,
