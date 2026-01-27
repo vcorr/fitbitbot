@@ -75,7 +75,7 @@ class FitbitClient:
                 if access_token and refresh_token:
                     self._access_token = access_token
                     self._refresh_token = refresh_token
-                    logger.info("Loaded tokens from FITBIT_TOKEN environment variable")
+                    logger.debug("Loaded tokens from FITBIT_TOKEN environment variable")
                     return
                 else:
                     logger.warning("FITBIT_TOKEN missing access_token or refresh_token, falling back to file")

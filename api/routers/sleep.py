@@ -180,17 +180,20 @@ async def get_sleep_history(
         recent_week = records[:7]
         older = records[7:]
         if older:
-            recent_avg = sum(r.duration_hours for r in recent_week if r.duration_hours) / len(recent_week)
-            older_avg = sum(r.duration_hours for r in older if r.duration_hours) / len(older)
-            diff = recent_avg - older_avg
-            if abs(diff) > 0.25:
-                insights.append(Insight(
-                    metric="duration_trend",
-                    current_value=round(recent_avg, 2),
-                    baseline_average=round(older_avg, 2),
-                    comparison="above_average" if diff > 0 else "below_average",
-                    note=f"Your sleep duration has {'increased' if diff > 0 else 'decreased'} by {abs(diff):.1f} hours compared to earlier in the period"
-                ))
+            recent_durations = [r.duration_hours for r in recent_week if r.duration_hours]
+            older_durations = [r.duration_hours for r in older if r.duration_hours]
+            if recent_durations and older_durations:
+                recent_avg = sum(recent_durations) / len(recent_durations)
+                older_avg = sum(older_durations) / len(older_durations)
+                diff = recent_avg - older_avg
+                if abs(diff) > 0.25:
+                    insights.append(Insight(
+                        metric="duration_trend",
+                        current_value=round(recent_avg, 2),
+                        baseline_average=round(older_avg, 2),
+                        comparison="above_average" if diff > 0 else "below_average",
+                        note=f"Your sleep duration has {'increased' if diff > 0 else 'decreased'} by {abs(diff):.1f} hours compared to earlier in the period"
+                    ))
 
     return SleepHistoryResponse(
         days_requested=days,

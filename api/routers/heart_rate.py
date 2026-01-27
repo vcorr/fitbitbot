@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query
 
 from ..fitbit_client import FitbitAPIError, FitbitClient, get_fitbit_client
-
-logger = logging.getLogger(__name__)
 from ..models import (
     DateValue,
     HeartRateIntraday,
@@ -17,6 +15,8 @@ from ..models import (
     Insight,
     RestingHeartRateHistoryResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/heart-rate", tags=["Heart Rate"])
 

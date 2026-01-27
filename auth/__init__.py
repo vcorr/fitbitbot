@@ -98,7 +98,7 @@ def load_cached_token():
         # Check if we have an access token
         if "access_token" in token_data:
             return token_data
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, OSError):
         pass
 
     return None
