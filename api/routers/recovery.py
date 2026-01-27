@@ -184,8 +184,10 @@ async def get_today_recovery(
                     percent_difference=round((diff / avg_rmssd) * 100, 1) if avg_rmssd else None,
                     note=note,
                 ))
-        except Exception:
-            pass
+        except FitbitAPIError as e:
+            logger.debug("Failed to fetch HRV history for insights: %s", e)
+        except (KeyError, TypeError, ZeroDivisionError) as e:
+            logger.debug("Failed to compute HRV insights: %s", e)
 
     return RecoveryTodayResponse(
         date=today,

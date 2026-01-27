@@ -232,17 +232,20 @@ async def get_activity_history(
         recent_week = records[:7]
         older = records[7:]
         if older:
-            recent_avg_steps = sum(r.steps for r in recent_week if r.steps) / 7
-            older_avg_steps = sum(r.steps for r in older if r.steps) / len(older)
-            diff = recent_avg_steps - older_avg_steps
-            if abs(diff) > 500:
-                insights.append(Insight(
-                    metric="steps_trend",
-                    current_value=round(recent_avg_steps, 0),
-                    baseline_average=round(older_avg_steps, 0),
-                    comparison="above_average" if diff > 0 else "below_average",
-                    note=f"Your average daily steps have {'increased' if diff > 0 else 'decreased'} by {abs(int(diff)):,} compared to earlier in the period"
-                ))
+            recent_steps = [r.steps for r in recent_week if r.steps]
+            older_steps = [r.steps for r in older if r.steps]
+            if recent_steps and older_steps:
+                recent_avg_steps = sum(recent_steps) / len(recent_steps)
+                older_avg_steps = sum(older_steps) / len(older_steps)
+                diff = recent_avg_steps - older_avg_steps
+                if abs(diff) > 500:
+                    insights.append(Insight(
+                        metric="steps_trend",
+                        current_value=round(recent_avg_steps, 0),
+                        baseline_average=round(older_avg_steps, 0),
+                        comparison="above_average" if diff > 0 else "below_average",
+                        note=f"Your average daily steps have {'increased' if diff > 0 else 'decreased'} by {abs(int(diff)):,} compared to earlier in the period"
+                    ))
 
     return ActivityHistoryResponse(
         days_requested=days,

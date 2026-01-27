@@ -155,6 +155,67 @@ From code review (PR #1):
 - [ ] Complete type hints throughout
 - [ ] Add file locking for token storage
 
+## Cloud Run Deployment
+
+### Prerequisites
+
+1. Google Cloud project with Cloud Run API enabled
+2. `gcloud` CLI installed and authenticated
+3. Fitbit OAuth tokens (run local auth first)
+
+### Deploy Steps
+
+```bash
+# Set your project
+export PROJECT_ID=your-project-id
+gcloud config set project $PROJECT_ID
+
+# Build and push container
+gcloud builds submit --tag gcr.io/$PROJECT_ID/fitbit-api
+
+# Create secrets in Secret Manager (first time only)
+echo -n "your-client-id" | gcloud secrets create fitbit-client-id --data-file=-
+echo -n "your-client-secret" | gcloud secrets create fitbit-client-secret --data-file=-
+cat output/.token.json | jq -c . | gcloud secrets create fitbit-token --data-file=-
+
+# Deploy to Cloud Run (uses Secret Manager for security)
+gcloud run deploy fitbit-api \
+  --image gcr.io/$PROJECT_ID/fitbit-api \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --min-instances 0 \
+  --set-secrets "CLIENT_ID=fitbit-client-id:latest" \
+  --set-secrets "CLIENT_SECRET=fitbit-client-secret:latest" \
+  --set-secrets "FITBIT_TOKEN=fitbit-token:latest"
+```
+
+### Updating Secrets
+
+```bash
+# Update token if needed (e.g., after re-authentication)
+cat output/.token.json | jq -c . | gcloud secrets versions add fitbit-token --data-file=-
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `CLIENT_ID` | Fitbit OAuth client ID |
+| `CLIENT_SECRET` | Fitbit OAuth client secret |
+| `FITBIT_TOKEN` | JSON string with access_token and refresh_token |
+
+### Token Refresh
+
+- Tokens are refreshed automatically when expired
+- In Cloud Run, refreshed tokens persist in memory for container lifetime
+- If container restarts, it uses `FITBIT_TOKEN` env var (refresh_token should still be valid)
+- For long-term reliability, periodically update `FITBIT_TOKEN` with fresh tokens
+
+### Cost Estimate
+
+With `min-instances=1`: ~$1-3/month for minimal usage.
+
 ## Authentication
 
 OAuth2 flow with automatic token refresh:
@@ -164,7 +225,48 @@ OAuth2 flow with automatic token refresh:
 3. `FitbitClient` auto-refreshes expired tokens
 4. Credentials in `.env`: `CLIENT_ID`, `CLIENT_SECRET`
 
+## Code Review with CodeRabbit CLI
+
+CodeRabbit CLI is installed for AI-powered code reviews.
+
+### Basic Usage
+
+```bash
+# Review committed changes against main branch
+coderabbit review --type committed --base main --plain
+
+# Review uncommitted changes
+coderabbit review --type uncommitted --plain
+
+# Minimal output for AI agent processing
+coderabbit review --prompt-only
+
+# Review specific commits (compare against a base commit)
+coderabbit review --base-commit <commit-hash> --plain
+```
+
+### Best Practices
+
+1. Run after completing a feature or fix, before pushing
+2. Use `--plain` for readable output, `--prompt-only` for minimal AI-friendly output
+3. Can take 7-30+ minutes for large changes
+4. Rate limits: 2-8 reviews/hour depending on plan
+
+### When to Use
+
+- Before creating a PR
+- After significant refactoring
+- To catch security issues, bugs, and best practice violations
+
 ## Development Notes
+
+### Git Workflow
+
+**Never commit directly to `main`.** Always:
+1. Create a feature branch: `git checkout -b feature/description`
+2. Make changes and commit to the branch
+3. Push and create a PR
+4. Merge via PR after review
 
 ### Adding New Endpoints
 

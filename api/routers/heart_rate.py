@@ -1,11 +1,12 @@
 """
 Heart rate endpoints.
 """
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 
-from ..fitbit_client import FitbitClient, get_fitbit_client
+from ..fitbit_client import FitbitAPIError, FitbitClient, get_fitbit_client
 from ..models import (
     DateValue,
     HeartRateIntraday,
@@ -14,6 +15,8 @@ from ..models import (
     Insight,
     RestingHeartRateHistoryResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/heart-rate", tags=["Heart Rate"])
 
@@ -44,9 +47,8 @@ async def get_today_heart_rate(
     """
     today = datetime.now().strftime("%Y-%m-%d")
 
-    # Request with intraday detail
-    detail_level = "1min" if include_intraday else "1min"
-    raw_data = client.get_heart_rate_by_date(today, detail_level)
+    # Always request 1min detail - include_intraday controls whether we return it
+    raw_data = client.get_heart_rate_by_date(today, "1min")
 
     resting_hr = None
     zones = []
@@ -94,8 +96,10 @@ async def get_today_heart_rate(
                     comparison=comparison,
                     percent_difference=round((diff / avg_resting) * 100, 1) if avg_resting else None,
                 ))
-        except Exception:
-            pass
+        except FitbitAPIError as e:
+            logger.debug("Failed to fetch HR history for insights: %s", e)
+        except (KeyError, TypeError, ZeroDivisionError) as e:
+            logger.debug("Failed to compute HR insights: %s", e)
 
     return HeartRateTodayResponse(
         date=today,

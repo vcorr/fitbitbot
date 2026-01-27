@@ -3,9 +3,11 @@ Fitbit Personal AI Coach API
 
 FastAPI backend serving Fitbit data for a personal AI coach.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from .fitbit_client import FitbitAPIError, FitbitRateLimitError
 from .routers import sleep, activity, exercise, heart_rate, recovery, summary, trends
 
 app = FastAPI(
@@ -51,6 +53,44 @@ app.include_router(heart_rate.router)
 app.include_router(recovery.router)
 app.include_router(summary.router)
 app.include_router(trends.router)
+
+
+# Global exception handlers for Fitbit API errors
+@app.exception_handler(FitbitRateLimitError)
+async def rate_limit_handler(request: Request, exc: FitbitRateLimitError):
+    """Handle Fitbit rate limit errors globally."""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "rate_limit_exceeded",
+            "message": "Fitbit API rate limit exceeded (150 requests/hour). Try again later.",
+            "retry_after": "Wait until the top of the hour for quota reset.",
+        },
+    )
+
+
+@app.exception_handler(FitbitAPIError)
+async def fitbit_api_error_handler(request: Request, exc: FitbitAPIError):
+    """Handle general Fitbit API errors globally."""
+    # Map to appropriate HTTP status
+    if exc.status_code == 401:
+        status = 401
+        error = "authentication_error"
+    elif exc.status_code == 403:
+        status = 403
+        error = "forbidden"
+    else:
+        status = 502  # Bad Gateway - upstream error
+        error = "upstream_error"
+
+    return JSONResponse(
+        status_code=status,
+        content={
+            "error": error,
+            "message": exc.message,
+            "fitbit_status": exc.status_code,
+        },
+    )
 
 
 @app.get("/", tags=["Health"])
