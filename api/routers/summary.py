@@ -148,10 +148,10 @@ async def get_today_summary(
 
     insights = []
 
-    # Sleep (last night)
+    # Sleep (last night) - Fitbit uses dateOfSleep = wake date, so "last night" = today
     sleep_record = None
     try:
-        sleep_raw = client.get_sleep_by_date(yesterday)
+        sleep_raw = client.get_sleep_by_date(today_str)
         if "sleep" in sleep_raw and sleep_raw["sleep"]:
             for entry in sleep_raw["sleep"]:
                 if entry.get("isMainSleep", False):
@@ -546,8 +546,6 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
         cached_sleep_history = client.get_sleep_range(week_ago, yesterday)
     except FitbitRateLimitError:
         raise
-    except FitbitRateLimitError:
-        raise
     except FitbitAPIError as e:
         logger.debug("Fitbit API error (non-critical): %s", e)
 
@@ -555,19 +553,17 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
         cached_hrv_history = client.get_hrv_range(week_ago, yesterday)
     except FitbitRateLimitError:
         raise
-    except FitbitRateLimitError:
-        raise
     except FitbitAPIError as e:
         logger.debug("Fitbit API error (non-critical): %s", e)
 
     # =========================================================================
-    # Last night's sleep
+    # Last night's sleep (Fitbit uses dateOfSleep = wake date, so "last night" = today)
     # =========================================================================
     last_night_sleep = None
     sleep_comparison = None
 
     try:
-        sleep_raw = client.get_sleep_by_date(yesterday)
+        sleep_raw = client.get_sleep_by_date(today)
         if "sleep" in sleep_raw and sleep_raw["sleep"]:
             for entry in sleep_raw["sleep"]:
                 if entry.get("isMainSleep", False):
@@ -614,8 +610,6 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
                             comparison="above_average",
                             note=f"Great recovery sleep! {diff:.1f} hours more than your average."
                         ))
-    except FitbitRateLimitError:
-        raise
     except FitbitRateLimitError:
         raise
     except FitbitAPIError as e:
@@ -918,8 +912,8 @@ async def _build_morning_report(client: FitbitClient) -> MorningReportResponse:
             diff = yesterday_activity.steps - trends.steps_daily_avg
             trends.activity_vs_avg = "above" if diff > 1000 else "below" if diff < -1000 else "at"
 
-    except Exception:
-        pass
+    except (KeyError, TypeError, AttributeError, ZeroDivisionError) as e:
+        logger.debug("Failed to compute trends: %s", e)
 
     # =========================================================================
     # Data summary (quick facts for AI to interpret)

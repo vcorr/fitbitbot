@@ -25,6 +25,7 @@ SCOPES = [
     "oxygen_saturation",
     "respiratory_rate",
     "temperature",
+    "cardio_fitness",
 ]
 
 
@@ -149,6 +150,7 @@ def exchange_code_for_token(client_id, client_secret, auth_code):
         },
         auth=(client_id, client_secret),
         headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=30,
     )
 
     if response.status_code != 200:
@@ -172,6 +174,7 @@ def refresh_token(client_id, client_secret, token_data):
         },
         auth=(client_id, client_secret),
         headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=30,
     )
 
     if response.status_code != 200:

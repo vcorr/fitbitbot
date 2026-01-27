@@ -5,12 +5,18 @@ Centralized client for all Fitbit API calls with automatic token refresh.
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import requests
 from dotenv import load_dotenv
+
+# Optional: Google Cloud Secret Manager for persisting refreshed tokens
+try:
+    from google.cloud import secretmanager
+    HAS_SECRET_MANAGER = True
+except ImportError:
+    HAS_SECRET_MANAGER = False
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -52,7 +58,31 @@ class FitbitClient:
         self._load_token()
 
     def _load_token(self) -> None:
-        """Load token from cache file."""
+        """
+        Load token from environment variable or cache file.
+
+        Priority:
+        1. FITBIT_TOKEN env var (JSON string) - for cloud deployment
+        2. Local token file - for local development
+        """
+        # Try environment variable first (for Cloud Run)
+        token_env = os.getenv("FITBIT_TOKEN")
+        if token_env:
+            try:
+                token_data = json.loads(token_env)
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                if access_token and refresh_token:
+                    self._access_token = access_token
+                    self._refresh_token = refresh_token
+                    logger.info("Loaded tokens from FITBIT_TOKEN environment variable")
+                    return
+                else:
+                    logger.warning("FITBIT_TOKEN missing access_token or refresh_token, falling back to file")
+            except json.JSONDecodeError as e:
+                logger.warning("Failed to parse FITBIT_TOKEN env var: %s", e)
+
+        # Fall back to local file (for local development)
         if TOKEN_FILE.exists():
             try:
                 with open(TOKEN_FILE) as f:
@@ -62,18 +92,70 @@ class FitbitClient:
                     logger.debug("Loaded tokens from %s", TOKEN_FILE)
             except json.JSONDecodeError as e:
                 logger.warning("Failed to parse token file %s: %s", TOKEN_FILE, e)
-            except IOError as e:
+            except OSError as e:
                 logger.warning("Failed to read token file %s: %s", TOKEN_FILE, e)
         else:
             logger.info("Token file not found at %s. Run authentication first.", TOKEN_FILE)
 
     def _save_token(self, token_data: dict) -> None:
-        """Save token to cache file."""
-        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(TOKEN_FILE, "w") as f:
-            json.dump(token_data, f, indent=2)
+        """
+        Save token - to file for local dev, to Secret Manager for cloud.
+        """
         self._access_token = token_data.get("access_token")
         self._refresh_token = token_data.get("refresh_token")
+
+        # Cloud deployment: persist to Secret Manager
+        if os.getenv("FITBIT_TOKEN") and HAS_SECRET_MANAGER:
+            self._save_token_to_secret_manager(token_data)
+        elif os.getenv("FITBIT_TOKEN") and not HAS_SECRET_MANAGER:
+            logger.warning(
+                "FITBIT_TOKEN is set but Secret Manager unavailable. "
+                "Refreshed tokens will not persist across container restarts."
+            )
+        # Local development: save to file
+        elif not os.getenv("FITBIT_TOKEN"):
+            try:
+                TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+                with open(TOKEN_FILE, "w") as f:
+                    json.dump(token_data, f, indent=2)
+                logger.debug("Saved tokens to %s", TOKEN_FILE)
+            except OSError as e:
+                logger.warning("Failed to save token file: %s", e)
+
+    def _save_token_to_secret_manager(self, token_data: dict) -> None:
+        """Persist refreshed token to Google Secret Manager."""
+        try:
+            # Get project ID from metadata server or environment
+            project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT")
+            if not project_id:
+                # Try to get from metadata server (works on Cloud Run)
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(
+                        "http://metadata.google.internal/computeMetadata/v1/project/project-id",
+                        headers={"Metadata-Flavor": "Google"}
+                    )
+                    with urllib.request.urlopen(req, timeout=2) as response:
+                        project_id = response.read().decode()
+                except Exception:
+                    logger.warning("Could not determine project ID for Secret Manager")
+                    return
+
+            client = secretmanager.SecretManagerServiceClient()
+            secret_name = f"projects/{project_id}/secrets/fitbit-token"
+
+            # Add new version with refreshed token
+            token_json = json.dumps(token_data)
+            client.add_secret_version(
+                request={
+                    "parent": secret_name,
+                    "payload": {"data": token_json.encode("utf-8")},
+                }
+            )
+            logger.info("Persisted refreshed token to Secret Manager")
+        except Exception as e:
+            # Log but don't fail - token is still valid in memory
+            logger.warning("Failed to persist token to Secret Manager: %s", e)
 
     def _refresh_access_token(self) -> bool:
         """Refresh the access token using the refresh token."""

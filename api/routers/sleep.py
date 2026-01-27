@@ -100,11 +100,12 @@ async def get_last_night_sleep(
     Get the most recent sleep record with full stage data.
     Includes insights comparing to 30-day baseline.
     """
-    # Get last night's sleep (actually query for yesterday since sleep is logged for the night before)
+    # Get last night's sleep - Fitbit records sleep by the date you wake up (dateOfSleep)
+    # So last night's sleep has today's date
     today = datetime.now()
-    yesterday = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+    today_str = today.strftime("%Y-%m-%d")
 
-    raw_data = client.get_sleep_by_date(yesterday)
+    raw_data = client.get_sleep_by_date(today_str)
 
     sleep_record = None
     if "sleep" in raw_data and raw_data["sleep"]:
