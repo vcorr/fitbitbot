@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "express-async-errors";
 import express, { Request, Response, NextFunction } from "express";
 import { getFitbitClient, FitbitAPIError, FitbitRateLimitError } from "./fitbit-client.js";
 

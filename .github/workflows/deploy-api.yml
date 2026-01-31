@@ -12,6 +12,10 @@ env:
   REGION: europe-north1
   SERVICE: fitbit-api
 
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -43,4 +47,6 @@ jobs:
           gcloud run deploy $SERVICE \
             --image gcr.io/$PROJECT_ID/$SERVICE \
             --region $REGION \
-            --project $PROJECT_ID
+            --project $PROJECT_ID \
+            --no-allow-unauthenticated \
+            --set-secrets="CLIENT_ID=fitbit-client-id:latest,CLIENT_SECRET=fitbit-client-secret:latest,FITBIT_TOKEN=fitbit-token:latest,API_KEY=fitbit-api-key:latest"
