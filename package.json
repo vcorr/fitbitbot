@@ -1,0 +1,16 @@
+{
+  "name": "fitbitbot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI fitness coach powered by Fitbit data",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "api": "npm run dev -w @fitbitbot/api",
+    "agent": "npm run dev -w @fitbitbot/agent",
+    "web": "npm run dev -w @fitbitbot/web",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  }
+}
