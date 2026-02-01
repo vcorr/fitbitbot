@@ -6,7 +6,7 @@ on:
     paths:
       - "packages/api/**"
       - ".github/workflows/deploy-api.yml"
-
+   workflow_dispatch:
 env:
   PROJECT_ID: ai-coach-485409
   REGION: europe-north1
