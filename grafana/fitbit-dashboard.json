@@ -1,0 +1,551 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Personal Fitbit health metrics - HRV, Sleep, Heart Rate, Activity",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "HRV Trend (RMSSD)",
+      "description": "Heart Rate Variability - higher is generally better. Compare to your personal baseline.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "RMSSD (ms)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "always",
+            "spanNulls": true
+          },
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "daily_rmssd", "text": "HRV", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "refId": "A",
+          "root_selector": "hrv_records",
+          "source": "url",
+          "type": "json",
+          "url": "/recovery/history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Resting Heart Rate",
+      "description": "Lower RHR generally indicates better cardiovascular fitness. Elevated RHR can signal incomplete recovery.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "BPM",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "showPoints": "always",
+            "spanNulls": true
+          },
+          "unit": "bpm",
+          "min": 40,
+          "max": 80
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "value", "text": "RHR", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/heart-rate/resting/history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Sleep Duration",
+      "description": "Adults need 7-9 hours. The green zone shows the recommended range.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "blue", "mode": "fixed" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisLabel": "Hours",
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "unit": "h",
+          "min": 0,
+          "max": 12,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 6 },
+              { "color": "green", "value": 7 },
+              { "color": "yellow", "value": 9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "duration_hours", "text": "Sleep", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/sleep/history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Sleep Efficiency",
+      "description": "Percentage of time in bed spent actually sleeping. Above 85% is good.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "purple", "mode": "fixed" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisLabel": "%",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "showPoints": "always",
+            "spanNulls": true
+          },
+          "unit": "percent",
+          "min": 50,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 75 },
+              { "color": "green", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "efficiency", "text": "Efficiency", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/sleep/history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Daily Steps",
+      "description": "Daily step count. 10,000 steps is a common goal.",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "green", "mode": "fixed" },
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 5000 },
+              { "color": "green", "value": 10000 }
+            ]
+          },
+          "custom": {
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "hidden" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Date", "type": "string" },
+            { "selector": "steps", "text": "Steps", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/activity/history?days=14",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Recovery Vitals",
+      "description": "SpO2 (blood oxygen), breathing rate, and temperature deviation",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "SpO2" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 92 }, { "color": "green", "value": 95 }] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Breathing" },
+            "properties": [
+              { "id": "unit", "value": "breathpm" },
+              { "id": "custom.displayName", "value": "Breaths/min" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Temp" },
+            "properties": [
+              { "id": "unit", "value": "celsius" },
+              { "id": "custom.displayName", "value": "Temp Deviation" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "spo2_avg", "text": "SpO2", "type": "number" },
+            { "selector": "breathing_rate", "text": "Breathing", "type": "number" },
+            { "selector": "temp_deviation", "text": "Temp", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "/summary/grafana-snapshot",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Sleep → HRV Correlation",
+      "description": "Overlay sleep duration with next-day HRV to spot recovery patterns",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 7,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "showPoints": "always",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Sleep" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.axisLabel", "value": "Sleep (hours)" },
+              { "id": "unit", "value": "h" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 10 },
+              { "id": "custom.drawStyle", "value": "bars" },
+              { "id": "custom.fillOpacity", "value": 40 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "HRV" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } },
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "custom.axisLabel", "value": "HRV (ms)" },
+              { "id": "unit", "value": "ms" },
+              { "id": "min", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "daily_rmssd", "text": "HRV", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "hrv_records",
+          "source": "url",
+          "type": "json",
+          "url": "/recovery/history?days=30",
+          "url_options": { "method": "GET" }
+        },
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "duration_hours", "text": "Sleep", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "B",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/sleep/history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Today's Summary",
+      "description": "Key metrics at a glance",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 },
+      "id": 8,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Sleep" },
+            "properties": [
+              { "id": "unit", "value": "h" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 6 }, { "color": "green", "value": 7 }] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "HRV" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "RHR" },
+            "properties": [{ "id": "unit", "value": "bpm" }]
+          }
+        ]
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "sleep_hours", "text": "Sleep", "type": "number" },
+            { "selector": "hrv_rmssd", "text": "HRV", "type": "number" },
+            { "selector": "resting_hr", "text": "RHR", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "/summary/grafana-snapshot",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "HRV vs Baseline",
+      "description": "How today's HRV compares to your 7-day average",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 },
+      "id": 9,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "min": -30,
+          "max": 30,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": -10 },
+              { "color": "green", "value": -5 },
+              { "color": "light-green", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "hrv_vs_baseline_pct", "text": "vs Baseline", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "/summary/grafana-snapshot",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "tags": ["fitbit", "health", "hrv", "sleep"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Fitbit Health Dashboard",
+  "uid": "fitbit-health",
+  "version": 1,
+  "weekStart": "monday"
+}
