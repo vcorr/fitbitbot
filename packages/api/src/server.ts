@@ -9,6 +9,7 @@ import { recoveryRouter } from "./routes/recovery.js";
 import { activityRouter } from "./routes/activity.js";
 import { heartRateRouter } from "./routes/heart-rate.js";
 import { summaryRouter } from "./routes/summary.js";
+import { refreshRouter } from "./routes/refresh.js";
 
 const app = express();
 app.use(express.json());
@@ -51,6 +52,7 @@ app.use("/recovery", recoveryRouter);
 app.use("/activity", activityRouter);
 app.use("/heart-rate", heartRateRouter);
 app.use("/summary", summaryRouter);
+app.use("/refresh-token", refreshRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
