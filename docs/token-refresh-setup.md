@@ -50,7 +50,7 @@ gcloud scheduler jobs create http fitbit-token-refresh \
   --max-retry-attempts=3 \
   --max-backoff=1h \
   --min-backoff=5s \
-  --description="Refresh Fitbit access token every 7 hours before 8-hour expiration"
+  --description="Refresh Fitbit access token four times daily before 8-hour expiration"
 ```
 
 **Important Notes:**
@@ -118,7 +118,7 @@ Check that new token versions are being created:
 gcloud secrets versions list fitbit-token --limit=5
 ```
 
-You should see new versions created every 7 hours.
+You should see new versions created four times daily.
 
 ## Monitoring
 
