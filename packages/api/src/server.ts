@@ -10,6 +10,7 @@ import { activityRouter } from "./routes/activity.js";
 import { heartRateRouter } from "./routes/heart-rate.js";
 import { summaryRouter } from "./routes/summary.js";
 import { refreshRouter } from "./routes/refresh.js";
+import { nightlyHealthIndexRouter } from "./routes/nightly-health-index.js";
 
 const app = express();
 app.use(express.json());
@@ -53,6 +54,7 @@ app.use("/activity", activityRouter);
 app.use("/heart-rate", heartRateRouter);
 app.use("/summary", summaryRouter);
 app.use("/refresh-token", refreshRouter);
+app.use("/nightly-health-index", nightlyHealthIndexRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

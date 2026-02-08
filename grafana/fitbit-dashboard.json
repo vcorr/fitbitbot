@@ -535,6 +535,247 @@
           "url_options": { "method": "GET" }
         }
       ]
+    },
+    {
+      "title": "Nightly Health Index (Z-Score Overlay)",
+      "description": "All nightly health metrics normalized as z-scores. Positive = better than your average, negative = worse. Composite (thick white line) is the average of all available z-scores per night.",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 32 },
+      "id": 10,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": true,
+            "axisColorMode": "text",
+            "axisLabel": "Z-Score",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "always",
+            "spanNulls": true
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Composite" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "dark-gray", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 3 },
+              { "id": "custom.pointSize", "value": 6 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "HRV" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "RHR" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Sleep Hours" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Sleep Eff" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "SpO2" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "cyan", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Breathing" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Temp" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "right" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "hrv_z", "text": "HRV", "type": "number" },
+            { "selector": "rhr_z", "text": "RHR", "type": "number" },
+            { "selector": "sleep_hours_z", "text": "Sleep Hours", "type": "number" },
+            { "selector": "sleep_eff_z", "text": "Sleep Eff", "type": "number" },
+            { "selector": "spo2_z", "text": "SpO2", "type": "number" },
+            { "selector": "br_z", "text": "Breathing", "type": "number" },
+            { "selector": "temp_z", "text": "Temp", "type": "number" },
+            { "selector": "composite", "text": "Composite", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/nightly-health-index?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Composite Health Score",
+      "description": "Single composite score averaging all available z-scores per night. Above 0 = better than your average, below 0 = worse.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+      "id": 11,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": true,
+            "axisColorMode": "text",
+            "axisLabel": "Z-Score",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "showPoints": "always",
+            "spanNulls": true,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": -0.5 },
+              { "color": "green", "value": 0 },
+              { "color": "light-green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "min", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "interval": "1d",
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Time", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "composite", "text": "Composite", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/nightly-health-index?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
+    },
+    {
+      "title": "Sleep Stages",
+      "description": "Nightly sleep stage breakdown in minutes. Target: 15-20% deep, 20-25% REM.",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+      "id": 12,
+      "datasource": "fitbit-api",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "min",
+          "custom": {
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Deep" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "dark-blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Light" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "light-blue", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "REM" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Wake" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "semi-dark-orange", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" },
+        "orientation": "vertical",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "showValue": "never",
+        "xTickLabelRotation": -45
+      },
+      "targets": [
+        {
+          "columns": [
+            { "selector": "date", "text": "Date", "type": "timestamp", "timestampFormat": "2006-01-02" },
+            { "selector": "deep", "text": "Deep", "type": "number" },
+            { "selector": "light", "text": "Light", "type": "number" },
+            { "selector": "rem", "text": "REM", "type": "number" },
+            { "selector": "wake", "text": "Wake", "type": "number" }
+          ],
+          "filters": [],
+          "format": "table",
+          "refId": "A",
+          "root_selector": "records",
+          "source": "url",
+          "type": "json",
+          "url": "/sleep/stages-history?days=30",
+          "url_options": { "method": "GET" }
+        }
+      ]
     }
   ],
   "refresh": "",
