@@ -4,12 +4,12 @@ This document explains how to set up automatic token refresh for the Fitbit API 
 
 ## Overview
 
-Fitbit access tokens expire after 8 hours. To prevent service interruptions, we use Cloud Scheduler to automatically refresh tokens every 7 hours (before expiration).
+Fitbit access tokens expire after 8 hours. To prevent service interruptions, we use Cloud Scheduler to automatically refresh tokens four times daily (00:00, 07:00, 14:00, 21:00 UTC) before expiration.
 
 ## Architecture
 
 - **Endpoint**: `POST /refresh-token`
-- **Schedule**: Every 7 hours (`0 */7 * * *` cron)
+- **Schedule**: Four times daily at 00:00, 07:00, 14:00, 21:00 UTC (`0 */7 * * *` cron)
 - **Authentication**: Protected by X-API-Key header
 - **Storage**: Refreshed tokens are automatically saved to Secret Manager (`fitbit-token`)
 
@@ -55,7 +55,7 @@ gcloud scheduler jobs create http fitbit-token-refresh \
 
 **Important Notes:**
 - Schedule runs at: 00:00, 07:00, 14:00, and 21:00 UTC every day
-- Uses exponential backoff: 5s → 10s → 20s → 1h between retries
+- Uses exponential backoff: 5s → 10s → 20s between retries (max-backoff=1h only applies to retries beyond the 3rd)
 - Service account must have `roles/run.invoker` permission on the Cloud Run service
 
 ### 4. Verify the Job is Created
