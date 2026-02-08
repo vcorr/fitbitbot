@@ -46,7 +46,8 @@ function readFixture(
   }
   try {
     const raw = JSON.parse(readFileSync(join(FIXTURES_DIR, filename), "utf-8"));
-    const { _snapshot, ...data } = raw;
+    const { _snapshot, ...rest } = raw;
+    const data = Array.isArray(raw.data) && Object.keys(rest).length === 1 ? raw.data : rest;
     return { success: true, data };
   } catch (err) {
     return {
@@ -188,9 +189,16 @@ Use this for weekly coaching reviews or when user asks about their week.`,
     if (recovery.success) data.recovery = recovery.data;
 
     if (Object.keys(data).length === 0) {
+      const errors = [
+        sleep.error && `sleep: ${sleep.error}`,
+        activity.error && `activity: ${activity.error}`,
+        recovery.error && `recovery: ${recovery.error}`,
+      ]
+        .filter(Boolean)
+        .join("; ");
       return {
         success: false,
-        error: "Failed to fetch weekly data from all sources.",
+        error: `Failed to fetch weekly data from all sources. ${errors}`,
       };
     }
     return { success: true, data };
@@ -287,9 +295,17 @@ Use for questions like "how's my week been?", "show me my HRV trend", or "am I s
     if (restingHr.success) data.resting_heart_rate = restingHr.data;
 
     if (Object.keys(data).length === 0) {
+      const errors = [
+        sleep.error && `sleep: ${sleep.error}`,
+        activity.error && `activity: ${activity.error}`,
+        recovery.error && `recovery: ${recovery.error}`,
+        restingHr.error && `resting_hr: ${restingHr.error}`,
+      ]
+        .filter(Boolean)
+        .join("; ");
       return {
         success: false,
-        error: "Failed to fetch trend data from all sources.",
+        error: `Failed to fetch trend data from all sources. ${errors}`,
       };
     }
     return { success: true, data };

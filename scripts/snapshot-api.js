@@ -69,7 +69,9 @@ async function main() {
     process.stdout.write(`  ${path} ... `);
     try {
       const data = await fetchEndpoint(path);
-      const output = { _snapshot: { timestamp, endpoint: path }, ...data };
+      const output = Array.isArray(data)
+        ? { _snapshot: { timestamp, endpoint: path }, data }
+        : { _snapshot: { timestamp, endpoint: path }, ...data };
       writeFileSync(join(FIXTURES_DIR, file), JSON.stringify(output, null, 2) + "\n");
       console.log("ok");
       succeeded++;
