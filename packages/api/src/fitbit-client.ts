@@ -122,7 +122,7 @@ export class FitbitClient {
     }
   }
 
-  private async refreshAccessToken(): Promise<boolean> {
+  public async refreshAccessToken(): Promise<boolean> {
     if (!this.refreshToken || !this.clientId || !this.clientSecret) {
       console.warn("Cannot refresh token: missing refresh_token, client_id, or client_secret");
       return false;

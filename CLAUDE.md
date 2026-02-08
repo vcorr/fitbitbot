@@ -36,6 +36,7 @@ npm run cli -w @fitbitbot/agent  # Test agent interactively
 - Use `require()` - this project uses ES modules
 - Skip error handling in API routes
 - Give generic health advice - always fetch user's actual data first
+- Never commit directly to the main branch — always create a feature branch and use a pull request
 
 ## Code Conventions
 
@@ -72,6 +73,7 @@ When working with health data, understand these principles:
 - **Project**: ai-coach-485409
 - **Secrets**: Stored in Google Secret Manager (CLIENT_ID, CLIENT_SECRET, FITBIT_TOKEN, API_KEY)
 - **Authentication**: API requires `X-API-Key` header, services not publicly accessible
+- **Token Refresh**: Cloud Scheduler automatically refreshes Fitbit tokens four times daily (00:00, 07:00, 14:00, 21:00 UTC) before the 8-hour expiration. **NEVER refresh tokens from your local environment** - see `docs/token-refresh-setup.md` for setup, monitoring, and troubleshooting.
 
 ## Important Context
 
