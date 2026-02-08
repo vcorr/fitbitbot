@@ -12,31 +12,30 @@
 
 import http from 'http';
 import { URL } from 'url';
-import { writeFileSync } from 'fs';
-import { exec } from 'child_process';
+import { writeFileSync, mkdirSync } from 'fs';
+import { execFile } from 'child_process';
+import { platform } from 'os';
 
-// Configuration
-const CLIENT_ID = process.env.FITBIT_CLIENT_ID || process.argv[2];
-const CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET || process.argv[3];
+// Configuration (env vars only — CLI args expose secrets in process listings)
+const CLIENT_ID = process.env.FITBIT_CLIENT_ID;
+const CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET;
 const REDIRECT_URI = 'http://localhost:8080/callback';
 const PORT = 8080;
 
 // Scopes needed for the app
-const SCOPES = [
+const SCOPES = encodeURIComponent([
   'activity',
   'heartrate',
   'sleep',
   'respiratory_rate',
   'temperature',
   'oxygen_saturation'
-].join('%20');
+].join(' '));
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error('❌ Missing credentials!');
   console.error('\nUsage:');
   console.error('  FITBIT_CLIENT_ID=xxx FITBIT_CLIENT_SECRET=yyy node scripts/refresh-fitbit-auth.js');
-  console.error('  OR');
-  console.error('  node scripts/refresh-fitbit-auth.js CLIENT_ID CLIENT_SECRET');
   process.exit(1);
 }
 
@@ -53,8 +52,10 @@ console.log('If browser doesn\'t open automatically, visit:\n');
 console.log(authUrl);
 console.log('\n');
 
-// Open browser
-exec(`open "${authUrl}"`, (error) => {
+// Open browser (cross-platform, no shell to avoid command injection)
+const openCmd = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'cmd' : 'xdg-open';
+const openArgs = platform() === 'win32' ? ['/c', 'start', authUrl] : [authUrl];
+execFile(openCmd, openArgs, (error) => {
   if (error) {
     console.log('Could not open browser automatically. Please copy the URL above.');
   }
@@ -84,7 +85,8 @@ const server = http.createServer(async (req, res) => {
   if (!code) {
     res.writeHead(400);
     res.end('<h1>Missing authorization code</h1>');
-    return;
+    server.close();
+    process.exit(1);
   }
 
   console.log('✅ Authorization code received!');
@@ -103,7 +105,8 @@ const server = http.createServer(async (req, res) => {
         code,
         grant_type: 'authorization_code',
         redirect_uri: REDIRECT_URI
-      })
+      }),
+      signal: AbortSignal.timeout(30_000)
     });
 
     if (!tokenResponse.ok) {
@@ -120,6 +123,7 @@ const server = http.createServer(async (req, res) => {
 
     // Save tokens
     const outputPath = './output/.token.json';
+    mkdirSync('./output', { recursive: true });
     writeFileSync(outputPath, JSON.stringify(tokens, null, 2));
 
     console.log('✅ Tokens saved to:', outputPath);
