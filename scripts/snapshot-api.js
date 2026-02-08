@@ -27,7 +27,6 @@ const API_KEY = process.env.FITBIT_API_KEY;
 const ENDPOINTS = [
   // Agent endpoints
   { path: "/summary/morning-report", file: "summary-morning-report.json" },
-  { path: "/summary/week", file: "summary-week.json" },
   { path: "/sleep/last-night", file: "sleep-last-night.json" },
   { path: "/recovery/today", file: "recovery-today.json" },
   // Grafana / history endpoints
