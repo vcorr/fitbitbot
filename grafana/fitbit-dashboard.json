@@ -382,7 +382,7 @@
               "steps": [
                 {
                   "color": "red",
-                  "value": 0
+                  "value": null
                 },
                 {
                   "color": "yellow",
@@ -831,7 +831,7 @@
           },
           "orientation": "vertical",
           "showValue": "never",
-          "stacking": "none",
+          "stacking": "normal",
           "tooltip": {
             "hideZeros": false,
             "mode": "multi",
