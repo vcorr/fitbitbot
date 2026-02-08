@@ -1,9 +1,14 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient } from "../fitbit-client.js";
+import { z } from "zod";
+import { getFitbitClient, FitbitRateLimitError } from "../fitbit-client.js";
 import { formatDate, daysAgo, zScores } from "../utils.js";
 import { parseSleepRecord } from "./sleep.js";
 
 export const nightlyHealthIndexRouter = Router();
+
+const QuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
 
 interface HrvEntry {
   dateTime: string;
@@ -32,7 +37,12 @@ interface TempEntry {
 
 // GET /nightly-health-index?days=30
 nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
-  const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
+  const parsed = QuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid days parameter. Must be integer 1-90." });
+    return;
+  }
+  const { days } = parsed.data;
   const client = getFitbitClient();
 
   const startDate = formatDate(daysAgo(days));
@@ -51,6 +61,15 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
       client.getBreathingRateRange(startDate, endDate) as Promise<{ br?: BrEntry[] }>,
       client.getTemperatureRange(startDate, endDate) as Promise<{ tempSkin?: TempEntry[] }>,
     ]);
+
+  // Surface 429 rate-limit errors instead of silently swallowing them
+  const results = [hrvResult, rhrResult, sleepResult, spo2Result, brResult, tempResult];
+  const rateLimited = results.find(
+    (r) => r.status === "rejected" && r.reason instanceof FitbitRateLimitError
+  );
+  if (rateLimited) {
+    throw (rateLimited as PromiseRejectedResult).reason;
+  }
 
   // Build date-keyed maps for each metric
   const hrvMap = new Map<string, number>();
@@ -146,19 +165,22 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
 
   // Compute z-scores (invert for metrics where lower = better)
   const hrvZ = zScores(hrvValues);
-  const rhrZ = zScores(rhrValues, true);
+  const rhrZ = zScores(rhrValues, true); // lower RHR = better
   const sleepHoursZ = zScores(sleepHoursValues);
   const sleepEffZ = zScores(sleepEffValues);
   const spo2Z = zScores(spo2Values);
-  const brZ = zScores(brValues, true);
-  const tempZ = zScores(tempValues, true);
+  const brZ = zScores(brValues, true); // lower breathing rate = better
+  // Skin temp is a deviation metric — any deviation (positive or negative) is bad
+  const tempAbsValues = tempValues.map((v) => (v !== null ? Math.abs(v) : null));
+  const tempZ = zScores(tempAbsValues, true); // higher absolute deviation = worse
 
-  // Build output records
+  // Build output records (require >= 3 metrics for a meaningful composite)
+  const MIN_METRICS_FOR_COMPOSITE = 3;
   const records = allDates.map((date, i) => {
     const scores = [hrvZ[i], rhrZ[i], sleepHoursZ[i], sleepEffZ[i], spo2Z[i], brZ[i], tempZ[i]];
     const validScores = scores.filter((s): s is number => s !== null);
     const composite =
-      validScores.length > 0
+      validScores.length >= MIN_METRICS_FOR_COMPOSITE
         ? Math.round((validScores.reduce((a, b) => a + b, 0) / validScores.length) * 100) / 100
         : null;
 
@@ -172,6 +194,7 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
       br_z: brZ[i],
       temp_z: tempZ[i],
       composite,
+      metrics_count: validScores.length,
     };
   });
 
