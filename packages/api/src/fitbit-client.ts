@@ -39,6 +39,8 @@ export class FitbitClient {
   private refreshToken: string | null = null;
   private clientId: string | undefined;
   private clientSecret: string | undefined;
+  private refreshPromise: Promise<boolean> | null = null;
+  private cachedProjectId: string | null = null;
 
   constructor() {
     this.clientId = process.env.CLIENT_ID;
@@ -82,7 +84,7 @@ export class FitbitClient {
     this.accessToken = tokenData.access_token;
     this.refreshToken = tokenData.refresh_token;
 
-    // Cloud deployment: persist to Secret Manager
+    // Cloud deployment: persist to Secret Manager (must not fail silently)
     if (process.env.FITBIT_TOKEN) {
       await this.saveTokenToSecretManager(tokenData);
     } else {
@@ -100,31 +102,95 @@ export class FitbitClient {
     }
   }
 
-  private async saveTokenToSecretManager(tokenData: TokenData): Promise<void> {
-    try {
-      const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
-      if (!projectId) {
-        console.warn("Could not determine project ID for Secret Manager");
-        return;
-      }
-
-      const { SecretManagerServiceClient } = await import("@google-cloud/secret-manager");
-      const client = new SecretManagerServiceClient();
-      const secretName = `projects/${projectId}/secrets/fitbit-token`;
-
-      await client.addSecretVersion({
-        parent: secretName,
-        payload: { data: Buffer.from(JSON.stringify(tokenData)) },
-      });
-      console.log("Persisted refreshed token to Secret Manager");
-    } catch (e) {
-      console.warn("Failed to persist token to Secret Manager:", e);
+  /**
+   * Verify Secret Manager persistence works BEFORE consuming the refresh token.
+   * Fitbit refresh tokens are single-use — if we consume one but can't persist
+   * the replacement, the chain is permanently broken.
+   */
+  private async verifyPersistenceAvailable(): Promise<boolean> {
+    if (!process.env.FITBIT_TOKEN) return true; // Local dev uses file, always works
+    const projectId = await this.getProjectId();
+    if (!projectId) {
+      console.error(
+        "CRITICAL: Cannot persist tokens — no GCP project ID available. " +
+          "Refusing to refresh to avoid breaking the token chain."
+      );
+      return false;
     }
+    return true;
+  }
+
+  private async getProjectId(): Promise<string | null> {
+    if (this.cachedProjectId) return this.cachedProjectId;
+
+    // Try env vars first
+    const envProjectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
+    if (envProjectId) {
+      this.cachedProjectId = envProjectId;
+      return envProjectId;
+    }
+
+    // Query GCP metadata server (available on Cloud Run, GCE, etc.)
+    try {
+      const response = await fetch(
+        "http://metadata.google.internal/computeMetadata/v1/project/project-id",
+        { headers: { "Metadata-Flavor": "Google" }, signal: AbortSignal.timeout(2000) }
+      );
+      if (response.ok) {
+        this.cachedProjectId = await response.text();
+        return this.cachedProjectId;
+      }
+    } catch {
+      // Not running on GCP
+    }
+
+    return null;
+  }
+
+  private async saveTokenToSecretManager(tokenData: TokenData): Promise<void> {
+    const projectId = await this.getProjectId();
+    if (!projectId) {
+      throw new Error(
+        "CRITICAL: Cannot determine GCP project ID. " +
+          "Set GOOGLE_CLOUD_PROJECT env var or run on GCP. " +
+          "Refreshed token will be lost on next cold start!"
+      );
+    }
+
+    const { SecretManagerServiceClient } = await import("@google-cloud/secret-manager");
+    const client = new SecretManagerServiceClient();
+    const secretName = `projects/${projectId}/secrets/fitbit-token`;
+
+    await client.addSecretVersion({
+      parent: secretName,
+      payload: { data: Buffer.from(JSON.stringify(tokenData)) },
+    });
+    console.log("Persisted refreshed token to Secret Manager");
   }
 
   public async refreshAccessToken(): Promise<boolean> {
+    // Mutex: if a refresh is already in progress, wait for it instead of racing
+    if (this.refreshPromise) {
+      console.log("Token refresh already in progress, waiting for it");
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.doRefresh();
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async doRefresh(): Promise<boolean> {
     if (!this.refreshToken || !this.clientId || !this.clientSecret) {
       console.warn("Cannot refresh token: missing refresh_token, client_id, or client_secret");
+      return false;
+    }
+
+    // Pre-check: verify we can persist before consuming the single-use refresh token
+    if (!(await this.verifyPersistenceAvailable())) {
       return false;
     }
 
