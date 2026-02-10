@@ -51,4 +51,5 @@ jobs:
             --region $REGION \
             --project $PROJECT_ID \
             --no-allow-unauthenticated \
+            --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
             --set-secrets="CLIENT_ID=fitbit-client-id:latest,CLIENT_SECRET=fitbit-client-secret:latest,FITBIT_TOKEN=fitbit-token:latest,API_KEY=fitbit-api-key:latest"
