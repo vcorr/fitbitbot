@@ -149,8 +149,11 @@ export function createMcpRoutes(): express.Router {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     if (sessionId && transports.has(sessionId)) {
       const transport = transports.get(sessionId)!;
-      await transport.handleRequest(req, res);
-      transports.delete(sessionId);
+      try {
+        await transport.handleRequest(req, res);
+      } finally {
+        transports.delete(sessionId);
+      }
     } else {
       res.status(200).end();
     }

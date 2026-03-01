@@ -32,10 +32,13 @@ const refreshTokens = new Map<string, {
   expiresAt: number;
 }>();
 
+const MAX_PASSWORD_ATTEMPTS = 5;
+
 interface PendingAuthRequest {
   client: OAuthClientInformationFull;
   params: AuthorizationParams;
   expiresAt: number;
+  failedAttempts: number;
 }
 
 const pendingAuthRequests = new Map<string, PendingAuthRequest>();
@@ -96,6 +99,7 @@ export const oauthProvider: OAuthServerProvider = {
       client,
       params,
       expiresAt: Date.now() + 10 * 60 * 1000,
+      failedAttempts: 0,
     });
 
     const clientName = escapeHtml(client.client_name || "Unknown app");
@@ -189,7 +193,7 @@ export const oauthProvider: OAuthServerProvider = {
   ): Promise<OAuthTokens> {
     const tokenData = refreshTokens.get(refreshToken);
     if (!tokenData) throw new Error("Invalid refresh token");
-    if (Date.now() / 1000 > tokenData.expiresAt) {
+    if (Date.now() / 1000 >= tokenData.expiresAt) {
       refreshTokens.delete(refreshToken);
       throw new Error("Refresh token expired");
     }
@@ -230,7 +234,7 @@ export const oauthProvider: OAuthServerProvider = {
     const tokenData = accessTokens.get(token);
     if (!tokenData) throw new Error("Invalid access token");
 
-    if (Math.floor(Date.now() / 1000) > tokenData.expiresAt) {
+    if (Math.floor(Date.now() / 1000) >= tokenData.expiresAt) {
       accessTokens.delete(token);
       throw new Error("Access token expired");
     }
@@ -262,6 +266,11 @@ export function approveAuthRequest(
   }
 
   if (!verifyPassword(password, MCP_AUTH_PASSWORD)) {
+    pending.failedAttempts += 1;
+    if (pending.failedAttempts >= MAX_PASSWORD_ATTEMPTS) {
+      pendingAuthRequests.delete(requestId);
+      return { error: "Too many failed attempts. Please start the authorization flow again." };
+    }
     return { error: "Invalid password." };
   }
 
