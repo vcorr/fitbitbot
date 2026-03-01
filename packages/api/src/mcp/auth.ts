@@ -137,7 +137,7 @@ export const oauthProvider: OAuthServerProvider = {
     client: OAuthClientInformationFull,
     authorizationCode: string,
     _codeVerifier?: string,
-    _redirectUri?: string,
+    redirectUri?: string,
   ): Promise<OAuthTokens> {
     const codeData = authCodes.get(authorizationCode);
     if (!codeData) throw new Error("Invalid authorization code");
@@ -147,6 +147,10 @@ export const oauthProvider: OAuthServerProvider = {
     }
     if (codeData.clientId !== client.client_id) {
       throw new Error("Client mismatch");
+    }
+    if (codeData.redirectUri && codeData.redirectUri !== redirectUri) {
+      authCodes.delete(authorizationCode);
+      throw new Error("Redirect URI mismatch");
     }
 
     authCodes.delete(authorizationCode);
@@ -225,6 +229,11 @@ export const oauthProvider: OAuthServerProvider = {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     const tokenData = accessTokens.get(token);
     if (!tokenData) throw new Error("Invalid access token");
+
+    if (Math.floor(Date.now() / 1000) > tokenData.expiresAt) {
+      accessTokens.delete(token);
+      throw new Error("Access token expired");
+    }
 
     return {
       token,

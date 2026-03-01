@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import express, { Request, Response, RequestHandler } from "express";
 import cors from "cors";
+import { z } from "zod";
 import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -29,10 +30,10 @@ export function createMcpRoutes(): express.Router {
   const mcpEndpointUrl = new URL("/mcp", MCP_SERVER_URL);
 
   // CORS for OAuth discovery and MCP endpoints
-  const allowedOrigins = ["https://claude.ai", "https://claude.com"];
+  const allowedOrigins = new Set(["https://claude.ai", "https://claude.com"]);
   const mcpCors = cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.some((o) => origin.startsWith(o))) {
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
       } else {
         callback(null, false);
@@ -58,13 +59,19 @@ export function createMcpRoutes(): express.Router {
 
   router.use(express.urlencoded({ extended: false }));
 
-  router.post("/mcp-approve", (req: Request, res: Response) => {
-    const { request_id, password } = req.body as { request_id?: string; password?: string };
+  const ApproveBodySchema = z.object({
+    request_id: z.string().uuid(),
+    password: z.string().min(1),
+  });
 
-    if (!request_id || !password) {
-      res.status(400).type("html").send(errorPage("Missing required fields."));
+  router.post("/mcp-approve", (req: Request, res: Response) => {
+    const parsed = ApproveBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).type("html").send(errorPage("Missing or invalid fields."));
       return;
     }
+
+    const { request_id, password } = parsed.data;
 
     const result = approveAuthRequest(request_id, password);
 
