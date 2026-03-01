@@ -11,11 +11,15 @@ import { heartRateRouter } from "./routes/heart-rate.js";
 import { summaryRouter } from "./routes/summary.js";
 import { refreshRouter } from "./routes/refresh.js";
 import { nightlyHealthIndexRouter } from "./routes/nightly-health-index.js";
+import { createMcpRoutes } from "./mcp/routes.js";
 
 const app = express();
 app.use(express.json());
 
-// API Key middleware
+// MCP + OAuth routes (mounted before API key middleware — has its own auth via OAuth Bearer tokens)
+app.use(createMcpRoutes());
+
+// API Key middleware (for existing Fitbit API routes only)
 const API_KEY = process.env.API_KEY;
 const PUBLIC_PATHS = ["/", "/health", "/docs"];
 
