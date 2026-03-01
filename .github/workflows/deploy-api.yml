@@ -11,6 +11,7 @@ env:
   PROJECT_ID: ai-coach-485409
   REGION: europe-north1
   SERVICE: fitbit-api
+  IMAGE: europe-north1-docker.pkg.dev/ai-coach-485409/fitbit-api/fitbit-api
 
 concurrency:
   group: deploy-api-${{ github.ref }}
@@ -37,12 +38,12 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
             
       - name: Configure Docker
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker europe-north1-docker.pkg.dev
 
       - name: Build and push container
         run: |
-          docker build -t gcr.io/$PROJECT_ID/$SERVICE packages/api
-          docker push gcr.io/$PROJECT_ID/$SERVICE            
+          docker build -t $IMAGE packages/api
+          docker push $IMAGE
 
       - name: Get Cloud Run service URL
         id: service-url
@@ -61,7 +62,7 @@ jobs:
             ENV_VARS="$ENV_VARS,MCP_SERVER_URL=$SERVICE_URL"
           fi
           gcloud run deploy $SERVICE \
-            --image gcr.io/$PROJECT_ID/$SERVICE \
+            --image $IMAGE \
             --region $REGION \
             --project $PROJECT_ID \
             --allow-unauthenticated \
