@@ -44,12 +44,26 @@ jobs:
           docker build -t gcr.io/$PROJECT_ID/$SERVICE packages/api
           docker push gcr.io/$PROJECT_ID/$SERVICE            
 
+      - name: Get Cloud Run service URL
+        id: service-url
+        run: |
+          URL=$(gcloud run services describe $SERVICE --region $REGION --project $PROJECT_ID --format='value(status.url)' 2>/dev/null || echo "")
+          if [ -z "$URL" ]; then
+            echo "::warning::Service URL not found (first deploy?). MCP_SERVER_URL will need to be set manually after deploy."
+          fi
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run
         run: |
+          SERVICE_URL="${{ steps.service-url.outputs.url }}"
+          ENV_VARS="GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+          if [ -n "$SERVICE_URL" ]; then
+            ENV_VARS="$ENV_VARS,MCP_SERVER_URL=$SERVICE_URL"
+          fi
           gcloud run deploy $SERVICE \
             --image gcr.io/$PROJECT_ID/$SERVICE \
             --region $REGION \
             --project $PROJECT_ID \
-            --no-allow-unauthenticated \
-            --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
-            --set-secrets="CLIENT_ID=fitbit-client-id:latest,CLIENT_SECRET=fitbit-client-secret:latest,FITBIT_TOKEN=fitbit-token:latest,API_KEY=fitbit-api-key:latest"
+            --allow-unauthenticated \
+            --set-env-vars="$ENV_VARS" \
+            --set-secrets="CLIENT_ID=fitbit-client-id:latest,CLIENT_SECRET=fitbit-client-secret:latest,FITBIT_TOKEN=fitbit-token:latest,API_KEY=fitbit-api-key:latest,MCP_AUTH_PASSWORD=mcp-auth-password:latest"
