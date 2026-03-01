@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-GB"
+
+reviews:
+  profile: chill
+
+  # ── Summary ────────────────────────────────────────────────────────────────
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  high_level_summary_instructions: |
+    Write a short executive summary structured as follows:
+    1. One sentence describing what this PR does.
+    2. A severity-ranked list of findings: Critical → High → Medium → Low.
+       Each finding: one sentence, stating the file and the problem.
+       No code snippets, no suggested fixes — those belong in inline comments.
+    3. A "Verdict" line: Ready to merge / Merge after fixes / Do not merge.
+    Keep the entire summary under 200 words. Do not repeat findings in prose
+    after the list. Do not include file tables, sequence diagrams, or metrics
+    in this section.
+
+  # ── Walkthrough noise reduction ────────────────────────────────────────────
+  collapse_walkthrough: true       # keeps the full detail available but collapsed
+  changed_files_summary: false     # removes the per-file table — the main offender
+  sequence_diagrams: false         # rarely useful, always long
+  estimate_code_review_effort: false
+  assess_linked_issues: false
+  related_issues: false
+  related_prs: false
+  poem: false
+
+  # ── Workflow ────────────────────────────────────────────────────────────────
+  request_changes_workflow: true   # auto-approve once all CR comments resolved
+  review_status: true
+  review_details: false            # suppresses the ignored-files / extra-context meta-block
+
+  # ── Tone ───────────────────────────────────────────────────────────────────
+tone_instructions: |
+  Be direct and concise. Lead with the problem, not the preamble.
+  Do not explain why a pattern is generally bad — assume the author knows.
+  Flag architectural concerns once; do not repeat them across files.
+  Omit encouraging remarks entirely.
