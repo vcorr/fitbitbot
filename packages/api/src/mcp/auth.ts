@@ -188,8 +188,6 @@ export const oauthProvider: OAuthServerProvider = {
       throw new Error("Client mismatch");
     }
 
-    await tokenStore.deleteRefreshToken(refreshToken);
-
     const newAccessToken = generateToken();
     const newRefreshToken = generateToken();
     const accessExpiresIn = 3600;
@@ -206,6 +204,8 @@ export const oauthProvider: OAuthServerProvider = {
       scopes: tokenData.scopes,
       expiresAt: Math.floor(Date.now() / 1000) + refreshExpiresIn,
     });
+
+    await tokenStore.deleteRefreshToken(refreshToken);
 
     console.log(`[MCP Auth] Refreshed tokens for client ${client.client_id}`);
 

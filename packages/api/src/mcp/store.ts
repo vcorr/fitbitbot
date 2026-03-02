@@ -14,12 +14,14 @@ function sha256(value: string): string {
 type FirestoreDb = import("@google-cloud/firestore").Firestore;
 
 let db: FirestoreDb | null = null;
-let firestoreInitAttempted = false;
+let lastFirestoreInitAttemptMs = 0;
+const FIRESTORE_RETRY_INTERVAL_MS = 60_000;
 
 async function getDb(): Promise<FirestoreDb | null> {
   if (db) return db;
-  if (!firestoreInitAttempted) {
-    firestoreInitAttempted = true;
+  const now = Date.now();
+  if (now - lastFirestoreInitAttemptMs >= FIRESTORE_RETRY_INTERVAL_MS) {
+    lastFirestoreInitAttemptMs = now;
     try {
       const { Firestore } = await import("@google-cloud/firestore");
       db = new Firestore();
