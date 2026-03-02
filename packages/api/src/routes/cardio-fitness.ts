@@ -52,7 +52,7 @@ cardioFitnessRouter.get("/history", async (req: Request, res: Response) => {
   const client = getFitbitClient();
 
   const startDate = formatDate(daysAgo(days));
-  const endDate = formatDate(daysAgo(1));
+  const endDate = formatDate(new Date());
 
   const rawData = await client.getCardioFitnessRange(startDate, endDate) as {
     cardioScore?: CardioScoreEntry[];

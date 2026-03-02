@@ -51,7 +51,7 @@ bodyWeightRouter.get("/history", async (req: Request, res: Response) => {
     date: entry.date,
     weight_kg: entry.weight,
     bmi: entry.bmi,
-    body_fat_percent: entry.fat || null,
+    body_fat_percent: entry.fat ?? null,
   }));
 
   // Sort by date descending

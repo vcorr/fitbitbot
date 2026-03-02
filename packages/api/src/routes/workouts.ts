@@ -4,6 +4,8 @@ import { formatDate, daysAgo } from "../utils.js";
 
 export const workoutsRouter = Router();
 
+const MS_PER_DAY = 86_400_000;
+
 interface HeartRateZone {
   name: string;
   minutes: number;
@@ -30,7 +32,7 @@ workoutsRouter.get("/", async (req: Request, res: Response) => {
 
   const cutoffDate = formatDate(daysAgo(days));
   // Fetch from tomorrow (to include today) with a generous limit
-  const beforeDate = formatDate(new Date(Date.now() + 86400000));
+  const beforeDate = formatDate(new Date(Date.now() + MS_PER_DAY));
 
   const rawData = await client.getActivityLogs(beforeDate, 100) as {
     activities?: ActivityLogEntry[];
