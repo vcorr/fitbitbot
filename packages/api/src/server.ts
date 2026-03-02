@@ -11,6 +11,9 @@ import { heartRateRouter } from "./routes/heart-rate.js";
 import { summaryRouter } from "./routes/summary.js";
 import { refreshRouter } from "./routes/refresh.js";
 import { nightlyHealthIndexRouter } from "./routes/nightly-health-index.js";
+import { cardioFitnessRouter } from "./routes/cardio-fitness.js";
+import { workoutsRouter } from "./routes/workouts.js";
+import { bodyWeightRouter } from "./routes/body-weight.js";
 import { createMcpRoutes } from "./mcp/routes.js";
 
 const app = express();
@@ -59,6 +62,9 @@ app.use("/heart-rate", heartRateRouter);
 app.use("/summary", summaryRouter);
 app.use("/refresh-token", refreshRouter);
 app.use("/nightly-health-index", nightlyHealthIndexRouter);
+app.use("/cardio-fitness", cardioFitnessRouter);
+app.use("/workouts", workoutsRouter);
+app.use("/body-weight", bodyWeightRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

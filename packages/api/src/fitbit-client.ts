@@ -391,6 +391,18 @@ export class FitbitClient {
   // Active Zone Minutes
   // =========================================================================
 
+  // =========================================================================
+  // Body Weight & Composition
+  // =========================================================================
+
+  getWeightByDate(date: string) {
+    return this.request(`/1/user/-/body/log/weight/date/${date}.json`);
+  }
+
+  getWeightRange(startDate: string, endDate: string) {
+    return this.request(`/1/user/-/body/log/weight/date/${startDate}/${endDate}.json`);
+  }
+
   getActiveZoneMinutesByDate(date: string) {
     return this.request(`/1/user/-/activities/active-zone-minutes/date/${date}/1d.json`);
   }

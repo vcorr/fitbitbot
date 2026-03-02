@@ -294,5 +294,104 @@ export function createMcpServer(): McpServer {
     },
   );
 
+  // --- Cardio Fitness tools ---
+
+  server.registerTool(
+    "get_cardio_fitness_today",
+    {
+      title: "Today's Cardio Fitness",
+      description: "Get today's VO2 Max (cardio fitness score). Fitbit may report this as a range (e.g. 42-46).",
+      inputSchema: z.object({}),
+    },
+    async () => {
+      try {
+        const data = await callApi("/cardio-fitness/today");
+        return toolResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_cardio_fitness_history",
+    {
+      title: "Cardio Fitness History",
+      description: "Get VO2 Max (cardio fitness score) trend over a period. Useful for tracking aerobic fitness improvements.",
+      inputSchema: z.object({
+        days: z.number().min(1).max(90).describe("Number of days of history (1-90)"),
+      }),
+    },
+    async ({ days }) => {
+      try {
+        const data = await callApi(`/cardio-fitness/history?days=${days}`);
+        return toolResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // --- Workout tools ---
+
+  server.registerTool(
+    "get_workout_history",
+    {
+      title: "Workout History",
+      description:
+        "Get recent workouts/exercises with duration, calories, steps, distance, average heart rate, and HR zones. " +
+        "Includes a summary of total workouts, minutes, and calories.",
+      inputSchema: z.object({
+        days: z.number().min(1).max(90).describe("Number of days of history (1-90)"),
+      }),
+    },
+    async ({ days }) => {
+      try {
+        const data = await callApi(`/workouts?days=${days}`);
+        return toolResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // --- Body Weight tools ---
+
+  server.registerTool(
+    "get_body_weight_today",
+    {
+      title: "Today's Body Weight",
+      description: "Get today's latest weight entry including weight (kg), BMI, and body fat percentage (if available).",
+      inputSchema: z.object({}),
+    },
+    async () => {
+      try {
+        const data = await callApi("/body-weight/today");
+        return toolResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_body_weight_history",
+    {
+      title: "Body Weight History",
+      description: "Get weight trend over a period with min, max, and average. Useful for tracking weight and body composition changes.",
+      inputSchema: z.object({
+        days: z.number().min(1).max(90).describe("Number of days of history (1-90)"),
+      }),
+    },
+    async ({ days }) => {
+      try {
+        const data = await callApi(`/body-weight/history?days=${days}`);
+        return toolResult(data);
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
   return server;
 }
