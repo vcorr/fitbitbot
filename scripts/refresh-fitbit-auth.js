@@ -25,6 +25,7 @@ const PORT = 8080;
 // Scopes needed for the app
 const SCOPES = encodeURIComponent([
   'activity',
+  'cardio_fitness',
   'heartrate',
   'sleep',
   'respiratory_rate',

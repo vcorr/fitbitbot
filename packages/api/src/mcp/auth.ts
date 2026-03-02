@@ -3,32 +3,19 @@ import type { OAuthServerProvider, AuthorizationParams } from "@modelcontextprot
 import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
 import type { OAuthClientInformationFull, OAuthTokens, OAuthTokenRevocationRequest } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { tokenStore } from "./store.js";
 
 // Express Response type — use `any` to avoid conflicts between @types/express v4 (API) and v5 (MCP SDK)
 type ExpressResponse = { type(t: string): ExpressResponse; send(body: string): void };
 
 const MCP_AUTH_PASSWORD = process.env.MCP_AUTH_PASSWORD;
 
-// --- In-memory stores ---
-
-const clients = new Map<string, OAuthClientInformationFull>();
+// --- In-memory stores (transient, not persisted) ---
 
 const authCodes = new Map<string, {
   clientId: string;
   codeChallenge: string;
   redirectUri: string;
-  expiresAt: number;
-}>();
-
-const accessTokens = new Map<string, {
-  clientId: string;
-  scopes: string[];
-  expiresAt: number;
-}>();
-
-const refreshTokens = new Map<string, {
-  clientId: string;
-  scopes: string[];
   expiresAt: number;
 }>();
 
@@ -67,7 +54,7 @@ function generateToken(): string {
 
 const clientsStore: OAuthRegisteredClientsStore = {
   async getClient(clientId: string) {
-    return clients.get(clientId);
+    return tokenStore.getClient(clientId);
   },
 
   async registerClient(clientData) {
@@ -80,7 +67,7 @@ const clientsStore: OAuthRegisteredClientsStore = {
       client_id_issued_at: Math.floor(Date.now() / 1000),
       client_secret_expires_at: 0,
     };
-    clients.set(clientId, fullClient);
+    await tokenStore.setClient(clientId, fullClient);
     console.log(`[MCP Auth] Registered client: ${clientId} (${fullClient.client_name || "unnamed"})`);
     return fullClient;
   },
@@ -164,13 +151,13 @@ export const oauthProvider: OAuthServerProvider = {
     const accessExpiresIn = 3600;
     const refreshExpiresIn = 7 * 24 * 3600;
 
-    accessTokens.set(accessToken, {
+    await tokenStore.setAccessToken(accessToken, {
       clientId: client.client_id,
       scopes: ["read"],
       expiresAt: Math.floor(Date.now() / 1000) + accessExpiresIn,
     });
 
-    refreshTokens.set(refreshToken, {
+    await tokenStore.setRefreshToken(refreshToken, {
       clientId: client.client_id,
       scopes: ["read"],
       expiresAt: Math.floor(Date.now() / 1000) + refreshExpiresIn,
@@ -191,30 +178,30 @@ export const oauthProvider: OAuthServerProvider = {
     refreshToken: string,
     _scopes?: string[],
   ): Promise<OAuthTokens> {
-    const tokenData = refreshTokens.get(refreshToken);
+    const tokenData = await tokenStore.getRefreshToken(refreshToken);
     if (!tokenData) throw new Error("Invalid refresh token");
     if (Date.now() / 1000 >= tokenData.expiresAt) {
-      refreshTokens.delete(refreshToken);
+      await tokenStore.deleteRefreshToken(refreshToken);
       throw new Error("Refresh token expired");
     }
     if (tokenData.clientId !== client.client_id) {
       throw new Error("Client mismatch");
     }
 
-    refreshTokens.delete(refreshToken);
+    await tokenStore.deleteRefreshToken(refreshToken);
 
     const newAccessToken = generateToken();
     const newRefreshToken = generateToken();
     const accessExpiresIn = 3600;
     const refreshExpiresIn = 7 * 24 * 3600;
 
-    accessTokens.set(newAccessToken, {
+    await tokenStore.setAccessToken(newAccessToken, {
       clientId: client.client_id,
       scopes: tokenData.scopes,
       expiresAt: Math.floor(Date.now() / 1000) + accessExpiresIn,
     });
 
-    refreshTokens.set(newRefreshToken, {
+    await tokenStore.setRefreshToken(newRefreshToken, {
       clientId: client.client_id,
       scopes: tokenData.scopes,
       expiresAt: Math.floor(Date.now() / 1000) + refreshExpiresIn,
@@ -231,11 +218,11 @@ export const oauthProvider: OAuthServerProvider = {
   },
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const tokenData = accessTokens.get(token);
+    const tokenData = await tokenStore.getAccessToken(token);
     if (!tokenData) throw new Error("Invalid access token");
 
     if (Math.floor(Date.now() / 1000) >= tokenData.expiresAt) {
-      accessTokens.delete(token);
+      await tokenStore.deleteAccessToken(token);
       throw new Error("Access token expired");
     }
 
