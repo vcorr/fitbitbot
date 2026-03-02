@@ -39,6 +39,14 @@ const ENDPOINTS = [
   { path: "/activity/today", file: "activity-today.json" },
   { path: "/heart-rate/today", file: "heart-rate-today.json" },
   { path: "/heart-rate/resting/history?days=30", file: "heart-rate-resting-history.json" },
+  // Cardio fitness
+  { path: "/cardio-fitness/today", file: "cardio-fitness-today.json" },
+  { path: "/cardio-fitness/history?days=30", file: "cardio-fitness-history.json" },
+  // Workouts
+  { path: "/workouts?days=14", file: "workouts.json" },
+  // Body weight
+  { path: "/body-weight/today", file: "body-weight-today.json" },
+  { path: "/body-weight/history?days=30", file: "body-weight-history.json" },
 ];
 
 async function fetchEndpoint(path) {
