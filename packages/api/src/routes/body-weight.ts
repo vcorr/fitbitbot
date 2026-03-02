@@ -1,8 +1,13 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { getFitbitClient } from "../fitbit-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const bodyWeightRouter = Router();
+
+const HistoryQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
 
 interface WeightEntry {
   date: string;
@@ -26,17 +31,20 @@ bodyWeightRouter.get("/today", async (_req: Request, res: Response) => {
   const latest = entries[entries.length - 1] || null;
 
   res.json({
-    date: today,
-    weight_kg: latest?.weight ?? null,
-    bmi: latest?.bmi ?? null,
-    body_fat_percent: latest?.fat ?? null,
-    raw_data: rawData,
+    success: true,
+    data: {
+      date: today,
+      weight_kg: latest?.weight ?? null,
+      bmi: latest?.bmi ?? null,
+      body_fat_percent: latest?.fat ?? null,
+      raw_data: rawData,
+    },
   });
 });
 
 // GET /body-weight/history?days=N
 bodyWeightRouter.get("/history", async (req: Request, res: Response) => {
-  const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
+  const { days } = HistoryQuerySchema.parse(req.query);
   const client = getFitbitClient();
 
   const startDate = formatDate(daysAgo(days));
@@ -72,9 +80,12 @@ bodyWeightRouter.get("/history", async (req: Request, res: Response) => {
   };
 
   res.json({
-    days_requested: days,
-    records,
-    averages,
-    raw_data: rawData,
+    success: true,
+    data: {
+      days_requested: days,
+      records,
+      averages,
+      raw_data: rawData,
+    },
   });
 });

@@ -1,8 +1,13 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { getFitbitClient } from "../fitbit-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const cardioFitnessRouter = Router();
+
+const HistoryQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
+});
 
 interface CardioScoreEntry {
   dateTime: string;
@@ -40,15 +45,18 @@ cardioFitnessRouter.get("/today", async (_req: Request, res: Response) => {
   const vo2Max = latest ? parseVo2Max(latest.value?.vo2Max) : null;
 
   res.json({
-    date: today,
-    vo2_max: vo2Max,
-    raw_data: rawData,
+    success: true,
+    data: {
+      date: today,
+      vo2_max: vo2Max,
+      raw_data: rawData,
+    },
   });
 });
 
 // GET /cardio-fitness/history?days=N
 cardioFitnessRouter.get("/history", async (req: Request, res: Response) => {
-  const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
+  const { days } = HistoryQuerySchema.parse(req.query);
   const client = getFitbitClient();
 
   const startDate = formatDate(daysAgo(days));
@@ -82,9 +90,12 @@ cardioFitnessRouter.get("/history", async (req: Request, res: Response) => {
   };
 
   res.json({
-    days_requested: days,
-    records,
-    averages,
-    raw_data: rawData,
+    success: true,
+    data: {
+      days_requested: days,
+      records,
+      averages,
+      raw_data: rawData,
+    },
   });
 });

@@ -1,10 +1,15 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { getFitbitClient } from "../fitbit-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const workoutsRouter = Router();
 
 const MS_PER_DAY = 86_400_000;
+
+const WorkoutsQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(14),
+});
 
 interface HeartRateZone {
   name: string;
@@ -27,7 +32,7 @@ interface ActivityLogEntry {
 
 // GET /workouts?days=N
 workoutsRouter.get("/", async (req: Request, res: Response) => {
-  const days = Math.min(Math.max(parseInt(req.query.days as string) || 14, 1), 90);
+  const { days } = WorkoutsQuerySchema.parse(req.query);
   const client = getFitbitClient();
 
   const cutoffDate = formatDate(daysAgo(days));
@@ -70,9 +75,12 @@ workoutsRouter.get("/", async (req: Request, res: Response) => {
   };
 
   res.json({
-    days_requested: days,
-    workouts,
-    summary,
-    raw_data: rawData,
+    success: true,
+    data: {
+      days_requested: days,
+      workouts,
+      summary,
+      raw_data: rawData,
+    },
   });
 });
