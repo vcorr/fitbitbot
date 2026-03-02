@@ -71,6 +71,8 @@ When working with health data, understand these principles:
 - **Auto deploy**: Push to `main` → GitHub Actions deploys API to Cloud Run
 - **Region**: europe-north1
 - **Project**: ai-coach-485409
+- **Container Registry**: Artifact Registry at `europe-north1-docker.pkg.dev/ai-coach-485409/fitbit-api/fitbit-api` (NOT `gcr.io` — that defaults to US)
+- **CI/CD Auth**: Workload Identity Federation (WIF) — see `docs/ci-cd-setup.md` for details
 - **Secrets**: Stored in Google Secret Manager (CLIENT_ID, CLIENT_SECRET, FITBIT_TOKEN, API_KEY)
 - **Authentication**: API requires `X-API-Key` header, services not publicly accessible
 - **Token Refresh**: Cloud Scheduler automatically refreshes Fitbit tokens four times daily (00:00, 07:00, 14:00, 21:00 UTC) before the 8-hour expiration. **NEVER refresh tokens from your local environment** - see `docs/token-refresh-setup.md` for setup, monitoring, and troubleshooting.
