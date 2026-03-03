@@ -30,7 +30,12 @@ export function createMcpRoutes(): express.Router {
   const mcpEndpointUrl = new URL("/mcp", MCP_SERVER_URL);
 
   // CORS for OAuth discovery and MCP endpoints
-  const allowedOrigins = new Set(["https://claude.ai", "https://claude.com"]);
+  const allowedOrigins = new Set([
+    "https://claude.ai",
+    "https://claude.com",
+    "https://chat.mistral.ai",
+    "https://mistral.ai",
+  ]);
   const mcpCors = cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.has(origin)) {

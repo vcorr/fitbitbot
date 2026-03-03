@@ -103,15 +103,18 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   const insights: Array<{ metric: string; current_value: unknown; baseline_average?: number; comparison?: string; percent_difference?: number; note?: string }> = [];
 
   // Fetch cached data upfront
-  let cachedSleepHistory: { sleep?: Array<Record<string, unknown>> } | null = null;
-  let cachedHrvHistory: { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number } }> } | null = null;
+  type SleepHistory = { sleep?: Array<Record<string, unknown>> };
+  type HrvHistory = { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number } }> };
+
+  let cachedSleepHistory: SleepHistory | null = null;
+  let cachedHrvHistory: HrvHistory | null = null;
 
   try {
-    cachedSleepHistory = await client.getSleepRange(weekAgo, yesterday) as typeof cachedSleepHistory;
+    cachedSleepHistory = await client.getSleepRange(weekAgo, yesterday) as SleepHistory;
   } catch (e) { /* ignore */ }
 
   try {
-    cachedHrvHistory = await client.getHrvRange(weekAgo, yesterday) as typeof cachedHrvHistory;
+    cachedHrvHistory = await client.getHrvRange(weekAgo, yesterday) as HrvHistory;
   } catch (e) { /* ignore */ }
 
   // Last night's sleep
@@ -129,14 +132,14 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
 
     if (lastNightSleep && cachedSleepHistory?.sleep) {
       const historyRecords = cachedSleepHistory.sleep
-        .filter((s) => s.isMainSleep && s.dateOfSleep !== lastNightSleep!.date)
-        .map((s) => parseSleepRecord(s));
+        .filter((s: Record<string, unknown>) => s.isMainSleep && s.dateOfSleep !== lastNightSleep!.date)
+        .map((s: Record<string, unknown>) => parseSleepRecord(s));
 
       if (historyRecords.length) {
-        const durations = historyRecords.filter((r) => r.duration_hours).map((r) => r.duration_hours!);
-        const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-        const efficiencies = historyRecords.filter((r) => r.efficiency).map((r) => r.efficiency!);
-        const avgEfficiency = efficiencies.length ? efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length : 0;
+        const durations = historyRecords.filter((r: { duration_hours?: number | null }) => r.duration_hours).map((r: { duration_hours?: number | null }) => r.duration_hours!);
+        const avgDuration = durations.reduce((a: number, b: number) => a + b, 0) / durations.length;
+        const efficiencies = historyRecords.filter((r: { efficiency?: number | null }) => r.efficiency).map((r: { efficiency?: number | null }) => r.efficiency!);
+        const avgEfficiency = efficiencies.length ? efficiencies.reduce((a: number, b: number) => a + b, 0) / efficiencies.length : 0;
 
         sleepComparison = {
           vs_7day_avg_duration_hours: Math.round(avgDuration * 100) / 100,
