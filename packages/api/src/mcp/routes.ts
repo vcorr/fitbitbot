@@ -123,12 +123,26 @@ export function createMcpRoutes(): express.Router {
         }
       };
 
+      transport.onerror = (error) => {
+        console.error(`[MCP] Transport error (session ${transport.sessionId}):`, error);
+      };
+
       const server = createMcpServer();
       await server.connect(transport);
+    } else if (sessionId) {
+      // Session ID provided but not found — return 404 so the client knows to re-initialize
+      // (MCP spec: clients receiving 404 MUST start a new session)
+      console.warn(`[MCP] POST with unknown session ID: ${sessionId}`);
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "Session not found" },
+        id: null,
+      });
+      return;
     } else {
       res.status(400).json({
         jsonrpc: "2.0",
-        error: { code: -32000, message: "Bad request: missing session ID or not an initialization request" },
+        error: { code: -32000, message: "Bad request: not an initialization request" },
         id: null,
       });
       return;
@@ -139,10 +153,19 @@ export function createMcpRoutes(): express.Router {
 
   const handleMcpGet = async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    if (!sessionId || !transports.has(sessionId)) {
+    if (!sessionId) {
       res.status(400).json({
         jsonrpc: "2.0",
-        error: { code: -32000, message: "Invalid or missing session ID" },
+        error: { code: -32000, message: "Missing session ID" },
+        id: null,
+      });
+      return;
+    }
+    if (!transports.has(sessionId)) {
+      console.warn(`[MCP] GET with unknown session ID: ${sessionId}`);
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "Session not found" },
         id: null,
       });
       return;
@@ -153,6 +176,7 @@ export function createMcpRoutes(): express.Router {
   const handleMcpDelete = async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     if (sessionId && transports.has(sessionId)) {
+      console.log(`[MCP] DELETE received for session: ${sessionId}`);
       const transport = transports.get(sessionId)!;
       try {
         await transport.handleRequest(req, res);
