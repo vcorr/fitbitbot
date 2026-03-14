@@ -41,6 +41,37 @@ export function mean(values: (number | null)[]): number | null {
 }
 
 /**
+ * Split a date range into chunks of at most `maxDays` days.
+ * Both startDate and endDate are inclusive YYYY-MM-DD strings.
+ * Returns an array of { startDate, endDate } pairs covering the full range.
+ */
+export function getDateChunks(
+  startDate: string,
+  endDate: string,
+  maxDays = 30,
+): Array<{ startDate: string; endDate: string }> {
+  const chunks: Array<{ startDate: string; endDate: string }> = [];
+  let cursor = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+
+  while (cursor <= end) {
+    const chunkEnd = new Date(cursor);
+    chunkEnd.setDate(chunkEnd.getDate() + maxDays - 1);
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+
+    chunks.push({
+      startDate: formatDate(cursor),
+      endDate: formatDate(chunkEnd),
+    });
+
+    cursor = new Date(chunkEnd);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return chunks;
+}
+
+/**
  * Population standard deviation, ignoring nulls.
  */
 export function stddev(values: (number | null)[]): number | null {

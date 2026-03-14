@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { getFitbitClient, FitbitRateLimitError } from "../fitbit-client.js";
-import { formatDate, daysAgo, zScores } from "../utils.js";
+import { formatDate, daysAgo, getDateChunks, zScores } from "../utils.js";
 import { parseSleepRecord } from "./sleep.js";
 
 export const nightlyHealthIndexRouter = Router();
@@ -48,11 +48,32 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));
 
+  // Fitbit HRV API only supports 30-day ranges; chunk larger requests
+  const chunks = getDateChunks(startDate, endDate);
+  const fetchChunkedHrv = async (): Promise<{ hrv?: HrvEntry[] }> => {
+    if (chunks.length === 1) {
+      return client.getHrvRange(chunks[0].startDate, chunks[0].endDate) as Promise<{ hrv?: HrvEntry[] }>;
+    }
+    const results = await Promise.allSettled(
+      chunks.map((c) => client.getHrvRange(c.startDate, c.endDate) as Promise<{ hrv?: HrvEntry[] }>),
+    );
+    for (const r of results) {
+      if (r.status === "rejected" && r.reason instanceof FitbitRateLimitError) {
+        throw r.reason;
+      }
+    }
+    const allEntries: HrvEntry[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled") allEntries.push(...(r.value.hrv || []));
+    }
+    return { hrv: allEntries };
+  };
+
   // Fetch all 6 metrics in parallel — failures are isolated
   // TODO: Add caching layer to avoid redundant Fitbit API calls
   const [hrvResult, rhrResult, sleepResult, spo2Result, brResult, tempResult] =
     await Promise.allSettled([
-      client.getHrvRange(startDate, endDate) as Promise<{ hrv?: HrvEntry[] }>,
+      fetchChunkedHrv(),
       client.getHeartRateRange(startDate, endDate) as Promise<{
         "activities-heart"?: HeartRateEntry[];
       }>,
