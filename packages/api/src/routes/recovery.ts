@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient } from "../fitbit-client.js";
-import { formatDate, daysAgo } from "../utils.js";
+import { getFitbitClient, FitbitRateLimitError } from "../fitbit-client.js";
+import { formatDate, daysAgo, getDateChunks } from "../utils.js";
 
 export const recoveryRouter = Router();
 
@@ -98,13 +98,38 @@ recoveryRouter.get("/history", async (req: Request, res: Response) => {
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));
 
-  const hrvRaw = await client.getHrvRange(startDate, endDate) as { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number; deepRmssd?: number } }> };
+  // Fitbit HRV API only supports 30-day ranges; chunk larger requests
+  const chunks = getDateChunks(startDate, endDate);
 
-  const hrvRecords = (hrvRaw.hrv || []).map((entry) => ({
-    date: entry.dateTime,
-    daily_rmssd: entry.value?.dailyRmssd || null,
-    deep_rmssd: entry.value?.deepRmssd || null,
-  }));
+  type HrvRaw = { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number; deepRmssd?: number } }> };
+
+  const allHrvEntries: NonNullable<HrvRaw["hrv"]> = [];
+  const results = await Promise.allSettled(
+    chunks.map((chunk) => client.getHrvRange(chunk.startDate, chunk.endDate) as Promise<HrvRaw>),
+  );
+  for (const result of results) {
+    if (result.status === "rejected" && result.reason instanceof FitbitRateLimitError) {
+      throw result.reason;
+    }
+  }
+  for (const result of results) {
+    if (result.status === "fulfilled") {
+      allHrvEntries.push(...(result.value.hrv || []));
+    } else {
+      console.log("HRV chunk fetch failed:", result.reason);
+    }
+  }
+
+  // Deduplicate by date (keep last occurrence) and build records
+  const byDate = new Map<string, { date: string; daily_rmssd: number | null; deep_rmssd: number | null }>();
+  for (const entry of allHrvEntries) {
+    byDate.set(entry.dateTime, {
+      date: entry.dateTime,
+      daily_rmssd: entry.value?.dailyRmssd ?? null,
+      deep_rmssd: entry.value?.deepRmssd ?? null,
+    });
+  }
+  const hrvRecords = [...byDate.values()];
 
   // Sort by date descending
   hrvRecords.sort((a, b) => b.date.localeCompare(a.date));
@@ -121,7 +146,7 @@ recoveryRouter.get("/history", async (req: Request, res: Response) => {
     breathing_rate_records: [],
     temperature_records: [],
     averages,
-    raw_data: { hrv: hrvRaw },
+    raw_data: { hrv: { hrv: allHrvEntries } },
     insights: [],
   });
 });
