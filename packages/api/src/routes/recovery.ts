@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient, FitbitRateLimitError } from "../fitbit-client.js";
+import { getFitbitClient } from "../fitbit-client.js";
 import { formatDate, daysAgo, getDateChunks } from "../utils.js";
 
 export const recoveryRouter = Router();
@@ -108,16 +108,10 @@ recoveryRouter.get("/history", async (req: Request, res: Response) => {
     chunks.map((chunk) => client.getHrvRange(chunk.startDate, chunk.endDate) as Promise<HrvRaw>),
   );
   for (const result of results) {
-    if (result.status === "rejected" && result.reason instanceof FitbitRateLimitError) {
+    if (result.status === "rejected") {
       throw result.reason;
     }
-  }
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      allHrvEntries.push(...(result.value.hrv || []));
-    } else {
-      console.log("HRV chunk fetch failed:", result.reason);
-    }
+    allHrvEntries.push(...(result.value.hrv || []));
   }
 
   // Deduplicate by date (keep last occurrence) and build records
