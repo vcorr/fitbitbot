@@ -50,6 +50,10 @@ export function getDateChunks(
   endDate: string,
   maxDays = 30,
 ): Array<{ startDate: string; endDate: string }> {
+  if (!Number.isInteger(maxDays) || maxDays < 1) {
+    throw new RangeError("maxDays must be a positive integer");
+  }
+
   const chunks: Array<{ startDate: string; endDate: string }> = [];
   let cursor = new Date(startDate + "T00:00:00");
   const end = new Date(endDate + "T00:00:00");
