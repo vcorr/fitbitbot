@@ -17,7 +17,7 @@ recoveryRouter.get("/today", async (_req: Request, res: Response) => {
 
   // HRV
   try {
-    const hrvRaw = await client.getHrvByDate(today) as { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number; deepRmssd?: number } }> };
+    const hrvRaw = await client.getHrvByDate(today);
     rawData.hrv = hrvRaw;
     if (hrvRaw.hrv?.[0]) {
       const entry = hrvRaw.hrv[0];
@@ -34,7 +34,7 @@ recoveryRouter.get("/today", async (_req: Request, res: Response) => {
 
   // SpO2
   try {
-    const spo2Raw = await client.getSpo2ByDate(today) as { dateTime?: string; value?: { avg?: number; min?: number; max?: number } };
+    const spo2Raw = await client.getSpo2ByDate(today);
     rawData.spo2 = spo2Raw;
     if (spo2Raw.value) {
       spo2 = {
@@ -50,7 +50,7 @@ recoveryRouter.get("/today", async (_req: Request, res: Response) => {
 
   // Breathing rate
   try {
-    const brRaw = await client.getBreathingRateByDate(today) as { br?: Array<{ dateTime: string; value: { breathingRate?: number } }> };
+    const brRaw = await client.getBreathingRateByDate(today);
     rawData.breathing_rate = brRaw;
     if (brRaw.br?.[0]) {
       const entry = brRaw.br[0];
@@ -65,7 +65,7 @@ recoveryRouter.get("/today", async (_req: Request, res: Response) => {
 
   // Temperature
   try {
-    const tempRaw = await client.getTemperatureByDate(today) as { tempSkin?: Array<{ dateTime: string; value: { nightlyRelative?: number } }> };
+    const tempRaw = await client.getTemperatureByDate(today);
     rawData.temperature = tempRaw;
     if (tempRaw.tempSkin?.[0]) {
       const entry = tempRaw.tempSkin[0];
@@ -101,11 +101,9 @@ recoveryRouter.get("/history", async (req: Request, res: Response) => {
   // Fitbit HRV API only supports 30-day ranges; chunk larger requests
   const chunks = getDateChunks(startDate, endDate);
 
-  type HrvRaw = { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number; deepRmssd?: number } }> };
-
-  const allHrvEntries: NonNullable<HrvRaw["hrv"]> = [];
+  const allHrvEntries: NonNullable<Awaited<ReturnType<typeof client.getHrvRange>>["hrv"]> = [];
   const results = await Promise.allSettled(
-    chunks.map((chunk) => client.getHrvRange(chunk.startDate, chunk.endDate) as Promise<HrvRaw>),
+    chunks.map((chunk) => client.getHrvRange(chunk.startDate, chunk.endDate)),
   );
   for (const result of results) {
     if (result.status === "rejected") {

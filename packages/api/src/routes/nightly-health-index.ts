@@ -10,30 +10,6 @@ const QuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(90).default(30),
 });
 
-interface HrvEntry {
-  dateTime: string;
-  value: { dailyRmssd?: number; deepRmssd?: number };
-}
-
-interface HeartRateEntry {
-  dateTime: string;
-  value: { restingHeartRate?: number };
-}
-
-interface Spo2Entry {
-  dateTime?: string;
-  value?: { avg?: number; min?: number; max?: number };
-}
-
-interface BrEntry {
-  dateTime: string;
-  value: { breathingRate?: number };
-}
-
-interface TempEntry {
-  dateTime: string;
-  value: { nightlyRelative?: number };
-}
 
 // GET /nightly-health-index?days=30
 nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
@@ -50,19 +26,21 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
 
   // Fitbit HRV API only supports 30-day ranges; chunk larger requests
   const chunks = getDateChunks(startDate, endDate);
-  const fetchChunkedHrv = async (): Promise<{ hrv?: HrvEntry[] }> => {
+  type HrvResponse = Awaited<ReturnType<typeof client.getHrvRange>>;
+
+  const fetchChunkedHrv = async (): Promise<HrvResponse> => {
     if (chunks.length === 1) {
-      return client.getHrvRange(chunks[0].startDate, chunks[0].endDate) as Promise<{ hrv?: HrvEntry[] }>;
+      return client.getHrvRange(chunks[0].startDate, chunks[0].endDate);
     }
     const results = await Promise.allSettled(
-      chunks.map((c) => client.getHrvRange(c.startDate, c.endDate) as Promise<{ hrv?: HrvEntry[] }>),
+      chunks.map((c) => client.getHrvRange(c.startDate, c.endDate)),
     );
     for (const r of results) {
       if (r.status === "rejected" && r.reason instanceof FitbitRateLimitError) {
         throw r.reason;
       }
     }
-    const allEntries: HrvEntry[] = [];
+    const allEntries: NonNullable<HrvResponse["hrv"]> = [];
     for (const r of results) {
       if (r.status === "fulfilled") allEntries.push(...(r.value.hrv || []));
     }
@@ -74,13 +52,11 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
   const [hrvResult, rhrResult, sleepResult, spo2Result, brResult, tempResult] =
     await Promise.allSettled([
       fetchChunkedHrv(),
-      client.getHeartRateRange(startDate, endDate) as Promise<{
-        "activities-heart"?: HeartRateEntry[];
-      }>,
-      client.getSleepRange(startDate, endDate) as Promise<{ sleep?: Record<string, unknown>[] }>,
-      client.getSpo2Range(startDate, endDate) as unknown as Promise<Spo2Entry[]>,
-      client.getBreathingRateRange(startDate, endDate) as Promise<{ br?: BrEntry[] }>,
-      client.getTemperatureRange(startDate, endDate) as Promise<{ tempSkin?: TempEntry[] }>,
+      client.getHeartRateRange(startDate, endDate),
+      client.getSleepRange(startDate, endDate),
+      client.getSpo2Range(startDate, endDate),
+      client.getBreathingRateRange(startDate, endDate),
+      client.getTemperatureRange(startDate, endDate),
     ]);
 
   // Surface 429 rate-limit errors instead of silently swallowing them
@@ -129,8 +105,7 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
 
   const spo2Map = new Map<string, number>();
   if (spo2Result.status === "fulfilled") {
-    const entries = Array.isArray(spo2Result.value) ? spo2Result.value : [];
-    for (const entry of entries) {
+    for (const entry of spo2Result.value) {
       if (entry.dateTime && entry.value?.avg != null) {
         spo2Map.set(entry.dateTime, entry.value.avg);
       }

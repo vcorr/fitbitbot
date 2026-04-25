@@ -1,8 +1,12 @@
 import { Router, Request, Response } from "express";
 import { getFitbitClient } from "../fitbit-client.js";
+import { type SleepEntrySchema } from "../fitbit-schemas.js";
 import { formatDate, daysAgo } from "../utils.js";
+import { type z } from "zod";
 
 export const sleepRouter = Router();
+
+type SleepEntry = z.infer<typeof SleepEntrySchema>;
 
 interface SleepStages {
   deep: number | null;
@@ -27,12 +31,11 @@ interface SleepRecord {
   is_main_sleep: boolean;
 }
 
-export function parseSleepRecord(entry: Record<string, unknown>): SleepRecord {
+export function parseSleepRecord(entry: SleepEntry): SleepRecord {
   let stages: SleepStages | null = null;
 
-  const levels = entry.levels as Record<string, unknown> | undefined;
-  if (levels?.summary) {
-    const summary = levels.summary as Record<string, { minutes?: number }>;
+  const summary = entry.levels?.summary;
+  if (summary) {
     const deep = summary.deep?.minutes ?? null;
     const light = summary.light?.minutes ?? null;
     const rem = summary.rem?.minutes ?? null;
@@ -51,20 +54,20 @@ export function parseSleepRecord(entry: Record<string, unknown>): SleepRecord {
     };
   }
 
-  const minutesAsleep = (entry.minutesAsleep as number) || 0;
+  const minutesAsleep = entry.minutesAsleep ?? 0;
   const durationHours = minutesAsleep ? Math.round((minutesAsleep / 60) * 100) / 100 : null;
 
   return {
-    date: (entry.dateOfSleep as string) || "",
-    start_time: (entry.startTime as string) || null,
-    end_time: (entry.endTime as string) || null,
+    date: entry.dateOfSleep ?? "",
+    start_time: entry.startTime ?? null,
+    end_time: entry.endTime ?? null,
     duration_hours: durationHours,
-    time_in_bed_minutes: (entry.timeInBed as number) || null,
-    minutes_asleep: (entry.minutesAsleep as number) || null,
-    minutes_awake: (entry.minutesAwake as number) || null,
-    efficiency: (entry.efficiency as number) || null,
+    time_in_bed_minutes: entry.timeInBed ?? null,
+    minutes_asleep: entry.minutesAsleep ?? null,
+    minutes_awake: entry.minutesAwake ?? null,
+    efficiency: entry.efficiency ?? null,
     stages,
-    is_main_sleep: (entry.isMainSleep as boolean) ?? true,
+    is_main_sleep: entry.isMainSleep ?? true,
   };
 }
 
@@ -74,18 +77,17 @@ sleepRouter.get("/last-night", async (_req: Request, res: Response) => {
   const today = formatDate(new Date());
 
   const rawData = await client.getSleepByDate(today);
-  const sleepArray = (rawData as { sleep?: unknown[] }).sleep || [];
+  const sleepArray = rawData.sleep || [];
 
   let sleepRecord: SleepRecord | null = null;
   for (const entry of sleepArray) {
-    const record = entry as Record<string, unknown>;
-    if (record.isMainSleep) {
-      sleepRecord = parseSleepRecord(record);
+    if (entry.isMainSleep) {
+      sleepRecord = parseSleepRecord(entry);
       break;
     }
   }
   if (!sleepRecord && sleepArray.length > 0) {
-    sleepRecord = parseSleepRecord(sleepArray[0] as Record<string, unknown>);
+    sleepRecord = parseSleepRecord(sleepArray[0]);
   }
 
   res.json({
@@ -104,13 +106,12 @@ sleepRouter.get("/history", async (req: Request, res: Response) => {
   const endDate = formatDate(daysAgo(1));
 
   const rawData = await client.getSleepRange(startDate, endDate);
-  const sleepArray = (rawData as { sleep?: unknown[] }).sleep || [];
+  const sleepArray = rawData.sleep || [];
 
   const records: SleepRecord[] = [];
   for (const entry of sleepArray) {
-    const record = entry as Record<string, unknown>;
-    if (record.isMainSleep) {
-      records.push(parseSleepRecord(record));
+    if (entry.isMainSleep) {
+      records.push(parseSleepRecord(entry));
     }
   }
 
@@ -144,7 +145,7 @@ sleepRouter.get("/stages-history", async (req: Request, res: Response) => {
   const endDate = formatDate(new Date());
 
   const rawData = await client.getSleepRange(startDate, endDate);
-  const sleepArray = (rawData as { sleep?: unknown[] }).sleep || [];
+  const sleepArray = rawData.sleep || [];
 
   const records: Array<{
     date: string;
@@ -157,19 +158,16 @@ sleepRouter.get("/stages-history", async (req: Request, res: Response) => {
   }> = [];
 
   for (const entry of sleepArray) {
-    const record = entry as Record<string, unknown>;
-    if (record.isMainSleep) {
-      const levels = record.levels as Record<string, unknown> | undefined;
-      const summary = (levels?.summary as Record<string, { minutes?: number }>) || {};
-
+    if (entry.isMainSleep) {
+      const summary = entry.levels?.summary || {};
       records.push({
-        date: (record.dateOfSleep as string) || "",
-        deep: summary.deep?.minutes || 0,
-        light: summary.light?.minutes || 0,
-        rem: summary.rem?.minutes || 0,
-        wake: summary.wake?.minutes || 0,
-        total_sleep: (record.minutesAsleep as number) || 0,
-        efficiency: (record.efficiency as number) || null,
+        date: entry.dateOfSleep ?? "",
+        deep: summary.deep?.minutes ?? 0,
+        light: summary.light?.minutes ?? 0,
+        rem: summary.rem?.minutes ?? 0,
+        wake: summary.wake?.minutes ?? 0,
+        total_sleep: entry.minutesAsleep ?? 0,
+        efficiency: entry.efficiency ?? null,
       });
     }
   }

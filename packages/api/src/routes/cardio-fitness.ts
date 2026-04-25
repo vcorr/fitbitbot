@@ -9,17 +9,7 @@ const HistoryQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(90).default(30),
 });
 
-interface CardioScoreEntry {
-  dateTime: string;
-  value: {
-    vo2Max?: string;
-  };
-}
-
-/**
- * Parse VO2 Max value which may be a range string like "42-46" or a single number.
- * Returns { low, high } for ranges or { low: n, high: n } for single values.
- */
+// Parse VO2 Max value which may be a range string like "42-46" or a single number.
 function parseVo2Max(value: string | undefined): { low: number; high: number } | null {
   if (!value) return null;
   if (value.includes("-")) {
@@ -36,9 +26,7 @@ cardioFitnessRouter.get("/today", async (_req: Request, res: Response) => {
   const client = getFitbitClient();
   const today = formatDate(new Date());
 
-  const rawData = await client.getCardioFitnessByDate(today) as {
-    cardioScore?: CardioScoreEntry[];
-  };
+  const rawData = await client.getCardioFitnessByDate(today);
 
   const entries = rawData.cardioScore || [];
   const latest = entries[entries.length - 1] || null;
@@ -62,9 +50,7 @@ cardioFitnessRouter.get("/history", async (req: Request, res: Response) => {
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(new Date());
 
-  const rawData = await client.getCardioFitnessRange(startDate, endDate) as {
-    cardioScore?: CardioScoreEntry[];
-  };
+  const rawData = await client.getCardioFitnessRange(startDate, endDate);
 
   const entries = rawData.cardioScore || [];
   const records = entries.map((entry) => {

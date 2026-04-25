@@ -9,15 +9,7 @@ heartRateRouter.get("/today", async (_req: Request, res: Response) => {
   const client = getFitbitClient();
   const today = formatDate(new Date());
 
-  const rawData = await client.getHeartRateByDate(today) as {
-    "activities-heart"?: Array<{
-      dateTime: string;
-      value: {
-        restingHeartRate?: number;
-        heartRateZones?: Array<{ name: string; minutes: number; caloriesOut?: number; min?: number; max?: number }>;
-      };
-    }>;
-  };
+  const rawData = await client.getHeartRateByDate(today);
 
   let restingHeartRate = null;
   const zones: Array<{ name: string; minutes: number; calories_out: number | null; min_hr: number | null; max_hr: number | null }> = [];
@@ -54,12 +46,7 @@ heartRateRouter.get("/resting/history", async (req: Request, res: Response) => {
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));
 
-  const rawData = await client.getHeartRateRange(startDate, endDate) as {
-    "activities-heart"?: Array<{
-      dateTime: string;
-      value: { restingHeartRate?: number };
-    }>;
-  };
+  const rawData = await client.getHeartRateRange(startDate, endDate);
 
   const records: Array<{ date: string; value: number | null }> = [];
   const values: number[] = [];

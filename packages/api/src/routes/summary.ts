@@ -30,17 +30,16 @@ summaryRouter.get("/grafana-snapshot", async (_req: Request, res: Response) => {
 
   // Sleep
   try {
-    const sleepRaw = await client.getSleepByDate(today) as { sleep?: Array<Record<string, unknown>> };
+    const sleepRaw = await client.getSleepByDate(today);
     for (const entry of sleepRaw.sleep || []) {
       if (entry.isMainSleep) {
-        result.sleep_hours = Math.round(((entry.minutesAsleep as number) || 0) / 60 * 100) / 100;
-        result.sleep_efficiency = entry.efficiency;
-        const levels = entry.levels as Record<string, unknown> | undefined;
-        const summary = (levels?.summary as Record<string, { minutes?: number }>) || {};
-        result.sleep_deep_min = summary.deep?.minutes || null;
-        result.sleep_light_min = summary.light?.minutes || null;
-        result.sleep_rem_min = summary.rem?.minutes || null;
-        result.sleep_wake_min = summary.wake?.minutes || null;
+        result.sleep_hours = Math.round(((entry.minutesAsleep ?? 0)) / 60 * 100) / 100;
+        result.sleep_efficiency = entry.efficiency ?? null;
+        const summary = entry.levels?.summary || {};
+        result.sleep_deep_min = summary.deep?.minutes ?? null;
+        result.sleep_light_min = summary.light?.minutes ?? null;
+        result.sleep_rem_min = summary.rem?.minutes ?? null;
+        result.sleep_wake_min = summary.wake?.minutes ?? null;
         break;
       }
     }
@@ -48,12 +47,12 @@ summaryRouter.get("/grafana-snapshot", async (_req: Request, res: Response) => {
 
   // HRV with baseline
   try {
-    const hrvRaw = await client.getHrvByDate(today) as { hrv?: Array<{ value: { dailyRmssd?: number } }> };
+    const hrvRaw = await client.getHrvByDate(today);
     if (hrvRaw.hrv?.[0]) {
-      result.hrv_rmssd = hrvRaw.hrv[0].value?.dailyRmssd || null;
+      result.hrv_rmssd = hrvRaw.hrv[0].value?.dailyRmssd ?? null;
 
       // Calculate baseline
-      const hrvHistory = await client.getHrvRange(weekAgo, yesterday) as { hrv?: Array<{ value: { dailyRmssd?: number } }> };
+      const hrvHistory = await client.getHrvRange(weekAgo, yesterday);
       const hrvValues = (hrvHistory.hrv || [])
         .filter((e) => e.value?.dailyRmssd)
         .map((e) => e.value.dailyRmssd!);
@@ -67,26 +66,26 @@ summaryRouter.get("/grafana-snapshot", async (_req: Request, res: Response) => {
 
   // SpO2
   try {
-    const spo2Raw = await client.getSpo2ByDate(today) as { value?: { avg?: number } };
-    result.spo2_avg = spo2Raw.value?.avg || null;
+    const spo2Raw = await client.getSpo2ByDate(today);
+    result.spo2_avg = spo2Raw.value?.avg ?? null;
   } catch (e) { /* ignore */ }
 
   // Breathing rate
   try {
-    const brRaw = await client.getBreathingRateByDate(today) as { br?: Array<{ value: { breathingRate?: number } }> };
-    result.breathing_rate = brRaw.br?.[0]?.value?.breathingRate || null;
+    const brRaw = await client.getBreathingRateByDate(today);
+    result.breathing_rate = brRaw.br?.[0]?.value?.breathingRate ?? null;
   } catch (e) { /* ignore */ }
 
   // Temperature
   try {
-    const tempRaw = await client.getTemperatureByDate(today) as { tempSkin?: Array<{ value: { nightlyRelative?: number } }> };
-    result.temp_deviation = tempRaw.tempSkin?.[0]?.value?.nightlyRelative || null;
+    const tempRaw = await client.getTemperatureByDate(today);
+    result.temp_deviation = tempRaw.tempSkin?.[0]?.value?.nightlyRelative ?? null;
   } catch (e) { /* ignore */ }
 
   // Resting HR
   try {
-    const hrRaw = await client.getHeartRateByDate(today) as { "activities-heart"?: Array<{ value: { restingHeartRate?: number } }> };
-    result.resting_hr = hrRaw["activities-heart"]?.[0]?.value?.restingHeartRate || null;
+    const hrRaw = await client.getHeartRateByDate(today);
+    result.resting_hr = hrRaw["activities-heart"]?.[0]?.value?.restingHeartRate ?? null;
   } catch (e) { /* ignore */ }
 
   res.json(result);
@@ -103,18 +102,15 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   const insights: Array<{ metric: string; current_value: unknown; baseline_average?: number; comparison?: string; percent_difference?: number; note?: string }> = [];
 
   // Fetch cached data upfront
-  type SleepHistory = { sleep?: Array<Record<string, unknown>> };
-  type HrvHistory = { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number } }> };
-
-  let cachedSleepHistory: SleepHistory | null = null;
-  let cachedHrvHistory: HrvHistory | null = null;
+  let cachedSleepHistory: Awaited<ReturnType<typeof client.getSleepRange>> | null = null;
+  let cachedHrvHistory: Awaited<ReturnType<typeof client.getHrvRange>> | null = null;
 
   try {
-    cachedSleepHistory = await client.getSleepRange(weekAgo, yesterday) as SleepHistory;
+    cachedSleepHistory = await client.getSleepRange(weekAgo, yesterday);
   } catch (e) { /* ignore */ }
 
   try {
-    cachedHrvHistory = await client.getHrvRange(weekAgo, yesterday) as HrvHistory;
+    cachedHrvHistory = await client.getHrvRange(weekAgo, yesterday);
   } catch (e) { /* ignore */ }
 
   // Last night's sleep
@@ -122,7 +118,7 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   let sleepComparison = null;
 
   try {
-    const sleepRaw = await client.getSleepByDate(today) as { sleep?: Array<Record<string, unknown>> };
+    const sleepRaw = await client.getSleepByDate(today);
     for (const entry of sleepRaw.sleep || []) {
       if (entry.isMainSleep) {
         lastNightSleep = parseSleepRecord(entry);
@@ -154,7 +150,7 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   // Yesterday's activity
   let yesterdayActivity = null;
   try {
-    const activityRaw = await client.getActivityByDate(yesterday) as { summary?: Record<string, unknown>; goals?: Record<string, unknown> };
+    const activityRaw = await client.getActivityByDate(yesterday);
     const summary = activityRaw.summary || {};
     yesterdayActivity = {
       date: yesterday,
@@ -167,7 +163,7 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
 
     // Fetch AZM
     try {
-      const azmRaw = await client.getActiveZoneMinutesByDate(yesterday) as { "activities-active-zone-minutes"?: Array<{ value: Record<string, unknown> }> };
+      const azmRaw = await client.getActiveZoneMinutesByDate(yesterday);
       const azmData = azmRaw["activities-active-zone-minutes"]?.[0]?.value || {};
       yesterdayActivity.active_zone_minutes = {
         total: (azmData.activeZoneMinutes as number) || null,
@@ -183,7 +179,7 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   let hrvData = null;
 
   try {
-    const hrvRaw = await client.getHrvByDate(today) as { hrv?: Array<{ dateTime: string; value: { dailyRmssd?: number; deepRmssd?: number } }> };
+    const hrvRaw = await client.getHrvByDate(today);
     if (hrvRaw.hrv?.[0]) {
       const entry = hrvRaw.hrv[0];
       let vsBaselinePercent = null;
@@ -212,8 +208,8 @@ summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
   // Resting HR
   let restingHeartRate = null;
   try {
-    const hrRaw = await client.getHeartRateByDate(today) as { "activities-heart"?: Array<{ value: { restingHeartRate?: number } }> };
-    restingHeartRate = hrRaw["activities-heart"]?.[0]?.value?.restingHeartRate || null;
+    const hrRaw = await client.getHeartRateByDate(today);
+    restingHeartRate = hrRaw["activities-heart"]?.[0]?.value?.restingHeartRate ?? null;
   } catch (e) { /* ignore */ }
 
   // Trends

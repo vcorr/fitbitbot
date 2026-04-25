@@ -9,7 +9,7 @@ activityRouter.get("/today", async (_req: Request, res: Response) => {
   const client = getFitbitClient();
   const today = formatDate(new Date());
 
-  const rawData = await client.getActivityByDate(today) as { summary?: Record<string, unknown>; goals?: Record<string, unknown> };
+  const rawData = await client.getActivityByDate(today);
   const summary = rawData.summary || {};
 
   res.json({
@@ -35,7 +35,7 @@ activityRouter.get("/history", async (req: Request, res: Response) => {
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));
 
-  const stepsRaw = await client.getActivityTimeSeries("steps", startDate, endDate) as { "activities-steps"?: Array<{ dateTime: string; value: string }> };
+  const stepsRaw = await client.getActivityTimeSeries("steps", startDate, endDate);
 
   const records = (stepsRaw["activities-steps"] || []).map((entry) => ({
     date: entry.dateTime,
