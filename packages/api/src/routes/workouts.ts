@@ -11,25 +11,6 @@ const WorkoutsQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(90).default(14),
 });
 
-interface HeartRateZone {
-  name: string;
-  minutes: number;
-  caloriesOut?: number;
-}
-
-interface ActivityLogEntry {
-  activityName: string;
-  startTime: string;
-  activeDuration: number; // milliseconds
-  calories: number;
-  steps?: number;
-  distance?: number;
-  distanceUnit?: string;
-  averageHeartRate?: number;
-  heartRateZones?: HeartRateZone[];
-  originalStartTime: string;
-}
-
 // GET /workouts?days=N
 workoutsRouter.get("/", async (req: Request, res: Response) => {
   const { days } = WorkoutsQuerySchema.parse(req.query);
@@ -39,9 +20,7 @@ workoutsRouter.get("/", async (req: Request, res: Response) => {
   // Fetch from tomorrow (to include today) with a generous limit
   const beforeDate = formatDate(new Date(Date.now() + MS_PER_DAY));
 
-  const rawData = await client.getActivityLogs(beforeDate, 100) as {
-    activities?: ActivityLogEntry[];
-  };
+  const rawData = await client.getActivityLogs(beforeDate, 100);
 
   const allActivities = rawData.activities || [];
 

@@ -5,6 +5,22 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { type ZodType } from "zod";
+import {
+  ActivityLogsResponseSchema,
+  ActivityResponseSchema,
+  AzmResponseSchema,
+  BreathingRateResponseSchema,
+  CardioFitnessResponseSchema,
+  HeartRateResponseSchema,
+  HrvResponseSchema,
+  SleepResponseSchema,
+  Spo2DayResponseSchema,
+  Spo2RangeResponseSchema,
+  StepsTimeSeriesSchema,
+  TemperatureResponseSchema,
+  WeightResponseSchema,
+} from "./fitbit-schemas.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TOKEN_FILE = join(__dirname, "..", "..", "..", "output", ".token.json");
@@ -285,20 +301,29 @@ export class FitbitClient {
     return response.json() as Promise<T>;
   }
 
+  private async requestValidated<T>(
+    schema: ZodType<T>,
+    endpoint: string,
+    params?: Record<string, string>
+  ): Promise<T> {
+    const raw = await this.request(endpoint, params);
+    return schema.parse(raw);
+  }
+
   // =========================================================================
   // Sleep Endpoints
   // =========================================================================
 
   getSleepByDate(date: string) {
-    return this.request(`/1.2/user/-/sleep/date/${date}.json`);
+    return this.requestValidated(SleepResponseSchema, `/1.2/user/-/sleep/date/${date}.json`);
   }
 
   getSleepRange(startDate: string, endDate: string) {
-    return this.request(`/1.2/user/-/sleep/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(SleepResponseSchema, `/1.2/user/-/sleep/date/${startDate}/${endDate}.json`);
   }
 
   getSleepList(beforeDate: string, limit = 7) {
-    return this.request("/1.2/user/-/sleep/list.json", {
+    return this.requestValidated(SleepResponseSchema, "/1.2/user/-/sleep/list.json", {
       beforeDate,
       sort: "desc",
       limit: String(limit),
@@ -311,11 +336,14 @@ export class FitbitClient {
   // =========================================================================
 
   getActivityByDate(date: string) {
-    return this.request(`/1/user/-/activities/date/${date}.json`);
+    return this.requestValidated(ActivityResponseSchema, `/1/user/-/activities/date/${date}.json`);
   }
 
   getActivityTimeSeries(resource: string, startDate: string, endDate: string) {
-    return this.request(`/1/user/-/activities/${resource}/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(
+      StepsTimeSeriesSchema,
+      `/1/user/-/activities/${resource}/date/${startDate}/${endDate}.json`
+    );
   }
 
   // =========================================================================
@@ -323,7 +351,7 @@ export class FitbitClient {
   // =========================================================================
 
   getActivityLogs(beforeDate: string, limit = 20) {
-    return this.request("/1/user/-/activities/list.json", {
+    return this.requestValidated(ActivityLogsResponseSchema, "/1/user/-/activities/list.json", {
       beforeDate,
       sort: "desc",
       limit: String(limit),
@@ -336,11 +364,17 @@ export class FitbitClient {
   // =========================================================================
 
   getHeartRateByDate(date: string, detailLevel = "1min") {
-    return this.request(`/1/user/-/activities/heart/date/${date}/1d/${detailLevel}.json`);
+    return this.requestValidated(
+      HeartRateResponseSchema,
+      `/1/user/-/activities/heart/date/${date}/1d/${detailLevel}.json`
+    );
   }
 
   getHeartRateRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/activities/heart/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(
+      HeartRateResponseSchema,
+      `/1/user/-/activities/heart/date/${startDate}/${endDate}.json`
+    );
   }
 
   // =========================================================================
@@ -348,43 +382,46 @@ export class FitbitClient {
   // =========================================================================
 
   getHrvByDate(date: string) {
-    return this.request(`/1/user/-/hrv/date/${date}.json`);
+    return this.requestValidated(HrvResponseSchema, `/1/user/-/hrv/date/${date}.json`);
   }
 
   getHrvRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/hrv/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(HrvResponseSchema, `/1/user/-/hrv/date/${startDate}/${endDate}.json`);
   }
 
   getSpo2ByDate(date: string) {
-    return this.request(`/1/user/-/spo2/date/${date}.json`);
+    return this.requestValidated(Spo2DayResponseSchema, `/1/user/-/spo2/date/${date}.json`);
   }
 
   getSpo2Range(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/spo2/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(Spo2RangeResponseSchema, `/1/user/-/spo2/date/${startDate}/${endDate}.json`);
   }
 
   getBreathingRateByDate(date: string) {
-    return this.request(`/1/user/-/br/date/${date}.json`);
+    return this.requestValidated(BreathingRateResponseSchema, `/1/user/-/br/date/${date}.json`);
   }
 
   getBreathingRateRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/br/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(BreathingRateResponseSchema, `/1/user/-/br/date/${startDate}/${endDate}.json`);
   }
 
   getTemperatureByDate(date: string) {
-    return this.request(`/1/user/-/temp/skin/date/${date}.json`);
+    return this.requestValidated(TemperatureResponseSchema, `/1/user/-/temp/skin/date/${date}.json`);
   }
 
   getTemperatureRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/temp/skin/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(TemperatureResponseSchema, `/1/user/-/temp/skin/date/${startDate}/${endDate}.json`);
   }
 
   getCardioFitnessByDate(date: string) {
-    return this.request(`/1/user/-/cardioscore/date/${date}.json`);
+    return this.requestValidated(CardioFitnessResponseSchema, `/1/user/-/cardioscore/date/${date}.json`);
   }
 
   getCardioFitnessRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/cardioscore/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(
+      CardioFitnessResponseSchema,
+      `/1/user/-/cardioscore/date/${startDate}/${endDate}.json`
+    );
   }
 
   // =========================================================================
@@ -392,11 +429,17 @@ export class FitbitClient {
   // =========================================================================
 
   getActiveZoneMinutesByDate(date: string) {
-    return this.request(`/1/user/-/activities/active-zone-minutes/date/${date}/1d.json`);
+    return this.requestValidated(
+      AzmResponseSchema,
+      `/1/user/-/activities/active-zone-minutes/date/${date}/1d.json`
+    );
   }
 
   getActiveZoneMinutesRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/activities/active-zone-minutes/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(
+      AzmResponseSchema,
+      `/1/user/-/activities/active-zone-minutes/date/${startDate}/${endDate}.json`
+    );
   }
 
   // =========================================================================
@@ -404,11 +447,11 @@ export class FitbitClient {
   // =========================================================================
 
   getWeightByDate(date: string) {
-    return this.request(`/1/user/-/body/log/weight/date/${date}.json`);
+    return this.requestValidated(WeightResponseSchema, `/1/user/-/body/log/weight/date/${date}.json`);
   }
 
   getWeightRange(startDate: string, endDate: string) {
-    return this.request(`/1/user/-/body/log/weight/date/${startDate}/${endDate}.json`);
+    return this.requestValidated(WeightResponseSchema, `/1/user/-/body/log/weight/date/${startDate}/${endDate}.json`);
   }
 }
 
