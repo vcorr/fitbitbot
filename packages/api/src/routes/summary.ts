@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient, FitbitAPIError } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 import { parseSleepRecord } from "./sleep.js";
 
@@ -7,7 +7,7 @@ export const summaryRouter = Router();
 
 // GET /summary/grafana-snapshot - Flat data for Grafana
 summaryRouter.get("/grafana-snapshot", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const today = formatDate(new Date());
   const weekAgo = formatDate(daysAgo(7));
   const yesterday = formatDate(daysAgo(1));
@@ -93,7 +93,7 @@ summaryRouter.get("/grafana-snapshot", async (_req: Request, res: Response) => {
 
 // GET /summary/morning-report - Comprehensive AI coaching context
 summaryRouter.get("/morning-report", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const now = new Date();
   const today = formatDate(now);
   const yesterday = formatDate(daysAgo(1));

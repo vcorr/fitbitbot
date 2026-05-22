@@ -1,12 +1,12 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const heartRateRouter = Router();
 
 // GET /heart-rate/today
 heartRateRouter.get("/today", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const today = formatDate(new Date());
 
   const rawData = await client.getHeartRateByDate(today);
@@ -41,7 +41,7 @@ heartRateRouter.get("/today", async (_req: Request, res: Response) => {
 // GET /heart-rate/resting/history
 heartRateRouter.get("/resting/history", async (req: Request, res: Response) => {
   const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const cardioFitnessRouter = Router();
@@ -23,7 +23,7 @@ function parseVo2Max(value: string | undefined): { low: number; high: number } |
 
 // GET /cardio-fitness/today
 cardioFitnessRouter.get("/today", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const today = formatDate(new Date());
 
   const rawData = await client.getCardioFitnessByDate(today);
@@ -45,7 +45,7 @@ cardioFitnessRouter.get("/today", async (_req: Request, res: Response) => {
 // GET /cardio-fitness/history?days=N
 cardioFitnessRouter.get("/history", async (req: Request, res: Response) => {
   const { days } = HistoryQuerySchema.parse(req.query);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(new Date());

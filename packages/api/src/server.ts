@@ -1,7 +1,7 @@
 import "dotenv/config";
 import "express-async-errors";
 import express, { Request, Response, NextFunction } from "express";
-import { getFitbitClient, FitbitAPIError, FitbitRateLimitError } from "./fitbit-client.js";
+import { getHealthClient, FitbitAPIError, FitbitRateLimitError } from "./health-client.js";
 
 // Import routes
 import { sleepRouter } from "./routes/sleep.js";
@@ -98,4 +98,4 @@ app.listen(PORT, () => {
   console.log(`Fitbit API running on port ${PORT}`);
 });
 
-export { app, getFitbitClient };
+export { app, getHealthClient };

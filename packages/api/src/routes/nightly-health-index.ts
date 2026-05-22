@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getFitbitClient, FitbitRateLimitError } from "../fitbit-client.js";
+import { getHealthClient, FitbitRateLimitError } from "../health-client.js";
 import { formatDate, daysAgo, getDateChunks, zScores } from "../utils.js";
 import { parseSleepRecord } from "./sleep.js";
 
@@ -19,7 +19,7 @@ nightlyHealthIndexRouter.get("/", async (req: Request, res: Response) => {
     return;
   }
   const { days } = parsed.data;
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));

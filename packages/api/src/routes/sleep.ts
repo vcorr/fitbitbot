@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { type SleepEntrySchema } from "../fitbit-schemas.js";
 import { formatDate, daysAgo } from "../utils.js";
 import { type z } from "zod";
@@ -73,7 +73,7 @@ export function parseSleepRecord(entry: SleepEntry): SleepRecord {
 
 // GET /sleep/last-night
 sleepRouter.get("/last-night", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const today = formatDate(new Date());
 
   const rawData = await client.getSleepByDate(today);
@@ -100,7 +100,7 @@ sleepRouter.get("/last-night", async (_req: Request, res: Response) => {
 // GET /sleep/history
 sleepRouter.get("/history", async (req: Request, res: Response) => {
   const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 90);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(daysAgo(1));
@@ -139,7 +139,7 @@ sleepRouter.get("/history", async (req: Request, res: Response) => {
 // GET /sleep/stages-history (flat format for Grafana)
 sleepRouter.get("/stages-history", async (req: Request, res: Response) => {
   const days = Math.min(Math.max(parseInt(req.query.days as string) || 14, 1), 30);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(new Date());

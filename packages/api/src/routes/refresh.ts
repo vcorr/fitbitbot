@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 
 export const refreshRouter = Router();
 
@@ -28,7 +28,7 @@ refreshRouter.post("/", async (_req: Request, res: Response) => {
     });
   }
 
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   try {
     const success = await client.refreshAccessToken();

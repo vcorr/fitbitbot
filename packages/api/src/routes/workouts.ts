@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const workoutsRouter = Router();
@@ -14,7 +14,7 @@ const WorkoutsQuerySchema = z.object({
 // GET /workouts?days=N
 workoutsRouter.get("/", async (req: Request, res: Response) => {
   const { days } = WorkoutsQuerySchema.parse(req.query);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const cutoffDate = formatDate(daysAgo(days));
   // Fetch from tomorrow (to include today) with a generous limit

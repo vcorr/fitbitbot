@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { getFitbitClient } from "../fitbit-client.js";
+import { getHealthClient } from "../health-client.js";
 import { formatDate, daysAgo } from "../utils.js";
 
 export const bodyWeightRouter = Router();
@@ -11,7 +11,7 @@ const HistoryQuerySchema = z.object({
 
 // GET /body-weight/today
 bodyWeightRouter.get("/today", async (_req: Request, res: Response) => {
-  const client = getFitbitClient();
+  const client = getHealthClient();
   const today = formatDate(new Date());
 
   const rawData = await client.getWeightByDate(today);
@@ -34,7 +34,7 @@ bodyWeightRouter.get("/today", async (_req: Request, res: Response) => {
 // GET /body-weight/history?days=N
 bodyWeightRouter.get("/history", async (req: Request, res: Response) => {
   const { days } = HistoryQuerySchema.parse(req.query);
-  const client = getFitbitClient();
+  const client = getHealthClient();
 
   const startDate = formatDate(daysAgo(days));
   const endDate = formatDate(new Date());
