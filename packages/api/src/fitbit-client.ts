@@ -28,6 +28,8 @@ const TOKEN_URL = "https://api.fitbit.com/oauth2/token";
 const BASE_URL = "https://api.fitbit.com";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const SECRET_VERSIONS_TO_KEEP = 3; // versions beyond this are destroyed to avoid unbounded Secret Manager billing
+const MAX_VERSIONS_TO_PRUNE_PER_RUN = 50; // bounds worst-case runtime on the refresh request path (default 3min Cloud Scheduler deadline)
+const SECRET_MANAGER_RPC_TIMEOUT_MS = 5000;
 
 export class FitbitAPIError extends Error {
   constructor(
@@ -195,21 +197,36 @@ export class FitbitClient {
     // active forever unless disabled/destroyed. Since we refresh 4x/day,
     // keep only the most recent versions so cost doesn't grow unbounded.
     try {
+      // DISABLED versions are still billable, not just ENABLED ones, so both must be considered.
       const [versions] = await client.listSecretVersions({
         parent: secretName,
-        filter: "state:ENABLED",
+        filter: "state:(ENABLED OR DISABLED)",
       });
 
-      // listSecretVersions returns newest first; drop everything past the keep count.
-      const staleVersions = versions.slice(SECRET_VERSIONS_TO_KEEP);
+      // listSecretVersions returns newest first; drop everything past the keep count,
+      // capped per run so a large backlog can't blow past the caller's request deadline.
+      const staleVersions = versions.slice(SECRET_VERSIONS_TO_KEEP, SECRET_VERSIONS_TO_KEEP + MAX_VERSIONS_TO_PRUNE_PER_RUN);
 
+      let destroyed = 0;
+      let failed = 0;
       for (const version of staleVersions) {
         if (!version.name) continue;
-        await client.destroySecretVersion({ name: version.name });
+        try {
+          await client.destroySecretVersion(
+            { name: version.name },
+            { timeout: SECRET_MANAGER_RPC_TIMEOUT_MS }
+          );
+          destroyed++;
+        } catch (err) {
+          failed++;
+          console.error(`Failed to destroy secret version ${version.name}:`, err);
+        }
       }
 
-      if (staleVersions.length > 0) {
-        console.log(`Destroyed ${staleVersions.length} stale fitbit-token secret version(s)`);
+      if (destroyed > 0 || failed > 0) {
+        console.log(
+          `Pruned fitbit-token secret versions: ${destroyed} destroyed, ${failed} failed`
+        );
       }
     } catch (err) {
       // Best-effort cleanup: never fail the token refresh over this.
