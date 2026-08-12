@@ -27,6 +27,7 @@ const TOKEN_FILE = join(__dirname, "..", "..", "..", "output", ".token.json");
 const TOKEN_URL = "https://api.fitbit.com/oauth2/token";
 const BASE_URL = "https://api.fitbit.com";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
+const SECRET_VERSIONS_TO_KEEP = 3; // versions beyond this are destroyed to avoid unbounded Secret Manager billing
 
 export class FitbitAPIError extends Error {
   constructor(
@@ -182,6 +183,38 @@ export class FitbitClient {
       payload: { data: Buffer.from(JSON.stringify(tokenData)) },
     });
     console.log("Persisted refreshed token to Secret Manager");
+
+    await this.pruneOldSecretVersions(client, secretName);
+  }
+
+  private async pruneOldSecretVersions(
+    client: import("@google-cloud/secret-manager").SecretManagerServiceClient,
+    secretName: string
+  ): Promise<void> {
+    // Secret Manager bills per active version per month, and versions stay
+    // active forever unless disabled/destroyed. Since we refresh 4x/day,
+    // keep only the most recent versions so cost doesn't grow unbounded.
+    try {
+      const [versions] = await client.listSecretVersions({
+        parent: secretName,
+        filter: "state:ENABLED",
+      });
+
+      // listSecretVersions returns newest first; drop everything past the keep count.
+      const staleVersions = versions.slice(SECRET_VERSIONS_TO_KEEP);
+
+      for (const version of staleVersions) {
+        if (!version.name) continue;
+        await client.destroySecretVersion({ name: version.name });
+      }
+
+      if (staleVersions.length > 0) {
+        console.log(`Destroyed ${staleVersions.length} stale fitbit-token secret version(s)`);
+      }
+    } catch (err) {
+      // Best-effort cleanup: never fail the token refresh over this.
+      console.error("Failed to prune old Secret Manager versions:", err);
+    }
   }
 
   public async refreshAccessToken(): Promise<boolean> {
